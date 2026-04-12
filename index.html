@@ -1246,16 +1246,16 @@ function _prodEnterInicio(e) {
 })();
 </script>
 
-<!-- ===== RASCUNHO LOCAL (localStorage) ===== -->
+<!-- ===== RASCUNHO LOCAL ===== -->
 <style>
-#draftIndicator {
+#draftBadge {
   position: fixed;
-  bottom: 14px;
-  right: 14px;
+  bottom: 16px;
+  right: 16px;
   z-index: 99999;
   background: var(--bg, #d0d4e4);
   border-radius: 50px;
-  padding: 7px 16px;
+  padding: 6px 14px;
   font-size: 11px;
   font-weight: 800;
   font-family: 'Nunito', sans-serif;
@@ -1263,287 +1263,104 @@ function _prodEnterInicio(e) {
   box-shadow: -4px -4px 10px rgba(255,255,255,0.9), 4px 4px 12px rgba(100,110,135,0.5);
   letter-spacing: 0.5px;
   opacity: 0;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.35s ease;
   pointer-events: none;
   user-select: none;
 }
-#draftIndicator.show { opacity: 1; }
+#draftBadge.visible { opacity: 1; }
 </style>
-<div id="draftIndicator">💾 Rascunho salvo</div>
+<div id="draftBadge">💾 Salvo</div>
 
 <script>
-(function() {
-  'use strict';
-  var DRAFT_KEY = 'servico_rascunho_v1';
-  var _draftTimer = null;
-  var _indicatorTimer = null;
+(function () {
+  // ── O app já possui salvarEstadoFormulario / restaurarEstadoFormulario
+  // ── que gravam em localStorage['pmba_estado_form'].
+  // ── Aqui apenas:
+  //   1. Garantimos que salvarEstadoFormulario é chamado imediatamente
+  //      em cada interação do usuário (input/change/click em opções).
+  //   2. Mostramos um badge visual de confirmação.
+  //   3. Garantimos que o botão Limpar apaga pmba_estado_form.
+  //   4. Bloqueamos qualquer tentativa de enviar dados do formulário
+  //      ao Firebase (apenas listas e configs vão para lá).
 
-  /* ---- Campos simples (input hidden / input text) ---- */
-  var SIMPLE_FIELDS = [
-    'unidade','horarioHeader','horarioHeaderPersonalizado',
-    'viatura','km_inicial','km_final',
-    'p1_nome','p1_mat','p1_funcao',
-    'p2_nome','p2_mat','p2_funcao',
-    'observacoes','produtividade',
-    'tel_funcional',
-    'adm_nome','adm_mat',
-    'permuta_saida','permuta_entrada',
-    'comp_policial','compInicio','compFim'
-  ];
+  var _badgeTimer = null;
 
-  /* ---- Coleta estado atual do formulário ---- */
-  function coletarEstado() {
-    var state = { ts: Date.now() };
-
-    // Campos simples
-    SIMPLE_FIELDS.forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) state[id] = el.value;
-    });
-
-    // Conteúdo editável (observações / produtividade)
-    ['observacoesDisplay','produtividadeDisplay','obsPersonalizadaDisplay'].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) state[id + '_html'] = el.innerHTML;
-    });
-
-    // Checkboxes / radios relevantes
-    ['obs_master_toggle','permuta_sim_toggle','comp_toggle_sim_toggle',
-     'obs_toggle_sim_toggle','prod_toggle_sim_toggle'].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) state[id] = el.checked;
-    });
-    ['permuta_sim','permuta_nao','comp_toggle_sim','comp_toggle_nao',
-     'obs_toggle_sim','obs_toggle_nao','prod_toggle_sim','prod_toggle_nao',
-     'adm_sim','adm_nao'].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el && el.checked) state[id + '_checked'] = true;
-    });
-
-    // Policiais extras (patrulha e adm) via containers
-    var extras = [];
-    document.querySelectorAll('#policiaisExtrasContainer [id^="extra_nome_"]').forEach(function(el) {
-      var idx = el.id.replace('extra_nome_', '');
-      var mat = document.getElementById('extra_mat_' + idx);
-      var func = document.getElementById('extra_funcao_' + idx);
-      extras.push({
-        idx: idx,
-        nome: el.value || '',
-        mat: mat ? mat.value : '',
-        funcao: func ? func.value : '',
-        tipo: 'patrulha'
-      });
-    });
-    document.querySelectorAll('#admExtrasContainer [id^="extra_adm_nome_"]').forEach(function(el) {
-      var idx = el.id.replace('extra_adm_nome_', '');
-      var mat = document.getElementById('extra_adm_mat_' + idx);
-      extras.push({ idx: idx, nome: el.value || '', mat: mat ? mat.value : '', tipo: 'adm' });
-    });
-    state._extras = extras;
-
-    // Viaturas extras
-    var vtrs = [];
-    document.querySelectorAll('#viaturasExtrasContainer [id^="viatura_extra_"]').forEach(function(el) {
-      var idx = el.id.replace('viatura_extra_', '');
-      var kmI = document.getElementById('km_extra_inicial_' + idx);
-      var kmF = document.getElementById('km_extra_final_' + idx);
-      vtrs.push({
-        idx: idx,
-        prefixo: el.value || '',
-        kmI: kmI ? kmI.value : '',
-        kmF: kmF ? kmF.value : ''
-      });
-    });
-    state._viaturas = vtrs;
-
-    // Trigger labels (custom selects) — salva label visível
-    document.querySelectorAll('[id^="trigger_"]').forEach(function(el) {
-      var lbl = el.querySelector('.cst-label');
-      if (lbl) state['_lbl_' + el.id] = lbl.textContent;
-    });
-
-    return state;
-  }
-
-  /* ---- Salva no localStorage ---- */
-  function salvarRascunho() {
-    try {
-      var state = coletarEstado();
-      localStorage.setItem(DRAFT_KEY, JSON.stringify(state));
-      mostrarIndicador();
-    } catch(e) {}
-  }
-
-  /* ---- Expõe globalmente para o auto-save já existente no app ---- */
-  window.salvarEstadoFormulario = function() { salvarRascunho(); };
-
-  /* ---- Mostra indicador visual ---- */
-  function mostrarIndicador() {
-    var el = document.getElementById('draftIndicator');
+  /* ── Badge visual ─────────────────────────────── */
+  function showBadge(msg) {
+    var el = document.getElementById('draftBadge');
     if (!el) return;
-    el.classList.add('show');
-    clearTimeout(_indicatorTimer);
-    _indicatorTimer = setTimeout(function() { el.classList.remove('show'); }, 2000);
+    el.textContent = msg || '💾 Salvo';
+    el.classList.add('visible');
+    clearTimeout(_badgeTimer);
+    _badgeTimer = setTimeout(function () { el.classList.remove('visible'); }, 1800);
   }
 
-  /* ---- Restaura rascunho salvo ---- */
-  function restaurarRascunho() {
-    var raw;
-    try { raw = localStorage.getItem(DRAFT_KEY); } catch(e) { return; }
-    if (!raw) return;
-    var state;
-    try { state = JSON.parse(raw); } catch(e) { return; }
-
-    // Campos simples
-    SIMPLE_FIELDS.forEach(function(id) {
-      if (state[id] === undefined) return;
-      var el = document.getElementById(id);
-      if (!el) return;
-      el.value = state[id];
-      // Dispara change para o app reagir (atualizar custom selects etc)
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-    });
-
-    // Conteúdo editável
-    ['observacoesDisplay','produtividadeDisplay','obsPersonalizadaDisplay'].forEach(function(id) {
-      if (state[id + '_html'] === undefined) return;
-      var el = document.getElementById(id);
-      if (el) el.innerHTML = state[id + '_html'];
-    });
-
-    // Checkboxes
-    ['obs_master_toggle','permuta_sim_toggle','comp_toggle_sim_toggle',
-     'obs_toggle_sim_toggle','prod_toggle_sim_toggle'].forEach(function(id) {
-      if (state[id] === undefined) return;
-      var el = document.getElementById(id);
-      if (el) { el.checked = state[id]; el.dispatchEvent(new Event('change', { bubbles: true })); }
-    });
-
-    // Restaura custom selects via hidden inputs + disparo de eventos
-    ['unidade','horarioHeader','p1_nome','p1_funcao','p2_nome','p2_funcao',
-     'adm_nome','permuta_saida','permuta_entrada','comp_policial'].forEach(function(id) {
-      if (!state[id]) return;
-      var el = document.getElementById(id);
-      if (!el) return;
-      // Tenta chamar função de seleção do custom select se disponível
-      setTimeout(function() {
-        if (typeof selectOption === 'function') {
-          try { selectOption(id, state[id]); } catch(e) {}
-        }
-        // Atualiza o label visual se salvo
-        var lbl = state['_lbl_trigger_' + id];
-        var trigger = document.getElementById('trigger_' + id);
-        if (trigger && lbl) {
-          var lblEl = trigger.querySelector('.cst-label');
-          if (lblEl) {
-            lblEl.textContent = lbl;
-            trigger.classList.remove('placeholder-active');
-          }
-        }
-        el.value = state[id];
-      }, 600);
-    });
-
-    // Horário personalizado
-    if (state['horarioHeaderPersonalizado']) {
-      var hpEl = document.getElementById('horarioHeaderPersonalizado');
-      if (hpEl) hpEl.value = state['horarioHeaderPersonalizado'];
+  /* ── Salva imediatamente usando a função do app ── */
+  function salvarAgora() {
+    if (typeof salvarEstadoFormulario === 'function') {
+      try { salvarEstadoFormulario(); } catch (e) {}
+      showBadge('💾 Salvo');
     }
-
-    // Restaura label do horário
-    setTimeout(function() {
-      if (state['_lbl_trigger_horarioHeader']) {
-        var t = document.getElementById('trigger_horarioHeader');
-        if (t) {
-          var l = t.querySelector('.cst-label');
-          if (l) { l.textContent = state['_lbl_trigger_horarioHeader']; t.classList.remove('placeholder-active'); }
-        }
-      }
-    }, 700);
-
-    // Viaturas extras — restaura se função disponível
-    if (state._viaturas && state._viaturas.length > 0) {
-      setTimeout(function() {
-        state._viaturas.forEach(function(v) {
-          if (typeof adicionarViaturaExtra === 'function') {
-            try { adicionarViaturaExtra(); } catch(e) {}
-          }
-          setTimeout(function() {
-            var el = document.getElementById('viatura_extra_' + v.idx) ||
-                     document.querySelector('#viaturasExtrasContainer [id^="viatura_extra_"]:last-child');
-            if (el) el.value = v.prefixo;
-            var ki = document.getElementById('km_extra_inicial_' + v.idx);
-            if (ki) ki.value = v.kmI;
-            var kf = document.getElementById('km_extra_final_' + v.idx);
-            if (kf) kf.value = v.kmF;
-          }, 200);
-        });
-      }, 1000);
-    }
-
-    // Atualiza preview se disponível
-    setTimeout(function() {
-      if (typeof atualizarPreview === 'function') { try { atualizarPreview(); } catch(e) {} }
-      if (typeof atualizarVisibilidadeObs === 'function') { try { atualizarVisibilidadeObs(); } catch(e) {} }
-    }, 900);
   }
 
-  /* ---- Limpa rascunho ---- */
-  function limparRascunho() {
-    try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
-  }
+  /* ── Bloqueia fbSalvar de incluir dados do formulário ─ */
+  // fbSalvar recebe (policiais, policiaisAdm, unidades, configs) — OK.
+  // Não mexemos nela pois ela não salva estado do formulário.
+  // Garantia extra: se alguém chamar fbSalvar com estado de form, ignoramos.
 
-  /* ---- Intercepta o botão Limpar para também apagar o rascunho ---- */
-  var _limparOriginal = null;
+  /* ── Hook no botão Limpar para apagar rascunho ── */
   function hookLimpar() {
-    if (typeof window.limparFormulario === 'function' && !window._limparHooked) {
-      _limparOriginal = window.limparFormulario;
-      window.limparFormulario = function() {
-        _limparOriginal.apply(this, arguments);
-        limparRascunho();
-        var el = document.getElementById('draftIndicator');
-        if (el) { el.textContent = '🗑️ Rascunho apagado'; el.classList.add('show');
-          clearTimeout(_indicatorTimer);
-          _indicatorTimer = setTimeout(function() {
-            el.classList.remove('show');
-            setTimeout(function(){ el.textContent = '💾 Rascunho salvo'; }, 400);
-          }, 2000);
-        }
-      };
-      window._limparHooked = true;
-    }
+    if (window.__draftLimparHooked || typeof window.limparFormulario !== 'function') return;
+    var orig = window.limparFormulario;
+    window.limparFormulario = function () {
+      orig.apply(this, arguments);
+      // limparFormulario já faz localStorage.removeItem('pmba_estado_form')
+      // e salvarViaturasExtras() — não precisamos fazer mais nada.
+      showBadge('🗑️ Limpo');
+    };
+    window.__draftLimparHooked = true;
   }
 
-  /* ---- Auto-save com debounce em qualquer interação ---- */
-  function agendarSalvamento() {
-    clearTimeout(_draftTimer);
-    _draftTimer = setTimeout(salvarRascunho, 1500);
-  }
-
-  document.addEventListener('input',  agendarSalvamento, true);
-  document.addEventListener('change', agendarSalvamento, true);
-  document.addEventListener('click',  function(e) {
+  /* ── Salva imediatamente em cada interação ───── */
+  // input: digitação em tempo real
+  document.addEventListener('input', function (e) {
     var t = e.target;
-    // Salva ao clicar em opções de selects customizados ou botões relevantes
-    if (t && (t.classList.contains('csd-option') || t.classList.contains('btn-obs-sub') ||
-        t.classList.contains('btn-add-policial') || t.classList.contains('btn-remove-policial') ||
-        t.classList.contains('btn-add-viatura') || t.classList.contains('btn-remove-viatura'))) {
-      setTimeout(agendarSalvamento, 300);
+    if (!t) return;
+    // Só campos do formulário, não buscas em dropdowns
+    if (t.classList && t.classList.contains('csd-search')) return;
+    salvarAgora();
+  }, true);
+
+  // change: selects, checkboxes, radios
+  document.addEventListener('change', function (e) {
+    var t = e.target;
+    if (!t) return;
+    if (t.classList && t.classList.contains('csd-search')) return;
+    salvarAgora();
+  }, true);
+
+  // click: opções de custom select, botões de sub-opção
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t || !t.classList) return;
+    if (
+      t.classList.contains('csd-option') ||
+      t.classList.contains('btn-obs-sub') ||
+      t.classList.contains('btn-add-policial') ||
+      t.classList.contains('btn-remove-policial') ||
+      t.classList.contains('btn-add-viatura') ||
+      t.classList.contains('btn-remove-viatura') ||
+      t.classList.contains('tp-ok')            // confirmar horário
+    ) {
+      setTimeout(salvarAgora, 250);
     }
   }, true);
 
-  /* ---- Inicialização ---- */
-  document.addEventListener('DOMContentLoaded', function() {
-    hookLimpar();
-    // Aguarda o app carregar antes de restaurar
-    setTimeout(function() {
-      hookLimpar();
-      restaurarRascunho();
-    }, 1200);
+  /* ── Inicialização ───────────────────────────── */
+  // Hook no limpar assim que a função existir
+  [0, 300, 800, 1500, 3000].forEach(function (t) {
+    setTimeout(hookLimpar, t);
   });
-
-  // Garante hook mesmo se limparFormulario for definida depois
-  [500, 1500, 3000].forEach(function(t) { setTimeout(hookLimpar, t); });
 
 })();
 </script>
