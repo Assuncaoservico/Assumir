@@ -703,13 +703,13 @@ html body .input-wrapper input,html body .input-wrapper input[type="text"],html 
 </div>
 
 <div id="prodPopup" class="prod-popup">
-    <div class="prod-popup-content">
-        <div class="edit-popup-header" style="position:relative;min-height:45px;padding:12px 18px;">
+    <div class="prod-popup-content" style="display:flex;flex-direction:column;max-height:72vh;">
+        <div class="edit-popup-header" style="position:relative;min-height:45px;padding:12px 18px;flex-shrink:0;">
             <h4 style="width:100%; text-align:center;">Editar Produtividade</h4>
             <div class="close-popup-custom" onclick="fecharProdPopup()">✕</div>
         </div>
-        <div id="prodListContainer"></div>
-        <div class="prod-buttons">
+        <div id="prodListContainer" style="overflow-y:auto;flex:1;padding:0 16px;"></div>
+        <div class="prod-buttons" style="flex-shrink:0;padding:12px 16px;background:var(--bg);border-top:1px solid rgba(56,56,200,0.08);">
             <button onclick="fecharProdPopup()">Cancelar</button>
             <button onclick="salvarProdPopup()">Salvar</button>
         </div>
@@ -1032,6 +1032,10 @@ html body .time-picker-box,html body .prod-popup-content,html body .compensacao-
 
 <style id="fixes-finais">
 button[onclick*="resetarConfiguracoes"]{background:var(--bg) !important;color:var(--accent) !important;text-shadow:none !important;border:none !important;box-shadow:var(--shadow-neu-out) !important;}html body #btnResetConfig,html body button#btnResetConfig{background:var(--bg) !important;color:var(--accent) !important;text-shadow:none !important;border:1.5px solid color-mix(in srgb,var(--accent) 50%,transparent) !important;box-shadow:var(--shadow-neu-out) !important;border-radius:50px !important;padding:10px 18px !important;}body.neu-mode .card{backdrop-filter:none !important;-webkit-backdrop-filter:none !important;background:#d0d4e4 !important;box-shadow:-6px -6px 14px rgba(255,255,255,0.85),6px 6px 14px rgba(100,110,140,0.35) !important;}html body .card,html body.light-mode .card,html body.neu-mode .card{border:1px solid color-mix(in srgb,var(--accent) 80%,transparent) !important;}#permutaPopupOverlay .custom-select-dropdown,#compPopupOverlay .custom-select-dropdown{z-index:10200 !important;position:relative !important;top:0 !important;}#permutaPopupOverlay .compensacao-popup-content,#compPopupOverlay .compensacao-popup-content{overflow:visible !important;}#permutaPopupOverlay .custom-select-wrapper,#compPopupOverlay .custom-select-wrapper{position:static !important;}#obsFieldGroup,#prodFieldGroup{display:block !important;}html body #observacoesDisplay,html body #produtividadeDisplay{min-height:160px !important;max-height:160px !important;height:160px !important;}.btn-obs-sub{flex:1;padding:9px 4px;font-size:10px;font-weight:800;font-family:'Nunito',sans-serif;text-transform:uppercase;letter-spacing:0.4px;border:none;border-radius:6px;cursor:pointer;background:var(--bg);color:var(--text-secondary);box-shadow:var(--shadow-neu-out);transition:all 0.18s;}.btn-obs-sub:active{box-shadow:var(--shadow-neu-in);transform:scale(0.97);}
+/* prod-popup: altura limitada, lista scroll, botões fixos */
+html body #prodPopup .prod-popup-content{overflow-y:hidden !important;overflow:hidden !important;}
+html body #prodListContainer{overflow-y:auto !important;-ms-overflow-style:none;scrollbar-width:none;}
+html body #prodListContainer::-webkit-scrollbar{display:none;}
 </style>
 
 <script>
