@@ -1197,6 +1197,208 @@ function _prodEnterInicio(e) {
 })();
 </script>
 <script>
+/* ═══════════════════════════════════════════════════════════════
+   RASCUNHO LOCAL POR USUÁRIO — v3
+   Restaura DEPOIS que o Firebase popular os dropdowns,
+   pois é o último passo da inicialização do app.
+   ═══════════════════════════════════════════════════════════════ */
+(function() {
+
+  /* ── ID ÚNICO POR DISPOSITIVO ── */
+  var k = 'servico_user_id';
+  var USER_ID = localStorage.getItem(k);
+  if (!USER_ID) {
+    USER_ID = 'u_' + Date.now() + '_' + Math.random().toString(36).slice(2,9);
+    localStorage.setItem(k, USER_ID);
+  }
+  var DRAFT_KEY = 'rascunho_' + USER_ID;
+  var _saveTimer = null;
+  var _restaurado = false;
+
+  /* ── COLETA ── */
+  function coletar() {
+    var d = { _ts: Date.now() };
+    document.querySelectorAll('input[id], select[id]').forEach(function(el) {
+      if (el.type === 'checkbox')     d[el.id] = el.checked;
+      else if (el.type === 'radio')   { if (el.checked) d['r__' + el.name] = el.value; }
+      else                            d[el.id] = el.value;
+    });
+    document.querySelectorAll('[contenteditable][id]').forEach(function(el) {
+      d['ce__' + el.id] = el.innerHTML;
+    });
+    document.querySelectorAll('.custom-select-trigger[id]').forEach(function(el) {
+      var lbl = el.querySelector('.cst-label');
+      if (lbl) d['csl__' + el.id] = lbl.innerHTML;
+      d['csp__' + el.id] = el.classList.contains('placeholder-active');
+    });
+    ['viaturasExtrasContainer','policiaisExtrasContainer','admExtrasContainer'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) d['html__' + id] = el.innerHTML;
+    });
+    var admC = document.getElementById('admContent');
+    if (admC) d['admDisplay'] = admC.style.display;
+    return d;
+  }
+
+  /* ── SALVA ── */
+  function salvar() {
+    try { localStorage.setItem(DRAFT_KEY, JSON.stringify(coletar())); } catch(e) {}
+  }
+
+  /* ── RESTAURA ── */
+  function restaurar() {
+    if (_restaurado) return;
+    try {
+      var raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      var d = JSON.parse(raw);
+      if (!d || !d._ts) return;
+      _restaurado = true;
+
+      // inputs/selects simples
+      Object.keys(d).forEach(function(key) {
+        if (/^(ce__|csl__|csp__|html__|r__|admDisplay|_ts)/.test(key)) return;
+        var el = document.getElementById(key);
+        if (!el) return;
+        if (el.type === 'checkbox') el.checked = !!d[key];
+        else el.value = d[key] || '';
+      });
+
+      // radios
+      Object.keys(d).forEach(function(key) {
+        if (key.indexOf('r__') !== 0) return;
+        document.querySelectorAll('input[type=radio][name="' + key.slice(3) + '"]')
+          .forEach(function(r) { r.checked = r.value === d[key]; });
+      });
+
+      // contenteditable
+      Object.keys(d).forEach(function(key) {
+        if (key.indexOf('ce__') !== 0) return;
+        var el = document.getElementById(key.slice(4));
+        if (el) { el.innerHTML = d[key]; el.dispatchEvent(new Event('input',{bubbles:true})); }
+      });
+
+      // custom select labels
+      Object.keys(d).forEach(function(key) {
+        if (key.indexOf('csl__') !== 0) return;
+        var trigger = document.getElementById(key.slice(5));
+        if (!trigger) return;
+        var lbl = trigger.querySelector('.cst-label');
+        if (lbl) lbl.innerHTML = d[key];
+        var ph = d['csp__' + key.slice(5)];
+        trigger.classList.toggle('placeholder-active', !!ph);
+      });
+
+      // Segunda passagem: garante que os custom selects não foram sobrescritos pelo app
+      function _reaplicarCustomSelects() {
+        Object.keys(d).forEach(function(key) {
+          if (key.indexOf('csl__') !== 0) return;
+          var triggerId = key.slice(5);
+          var trigger = document.getElementById(triggerId);
+          if (!trigger) return;
+          var ph = d['csp__' + triggerId];
+          // Se deveria ter valor (ph=false) mas ainda está como placeholder, re-aplica
+          if (!ph && trigger.classList.contains('placeholder-active')) {
+            var lbl = trigger.querySelector('.cst-label');
+            if (lbl) lbl.innerHTML = d[key];
+            trigger.classList.remove('placeholder-active');
+          }
+        });
+      }
+      setTimeout(_reaplicarCustomSelects, 500);
+      setTimeout(_reaplicarCustomSelects, 1500);
+
+      // containers dinâmicos
+      ['viaturasExtrasContainer','policiaisExtrasContainer','admExtrasContainer'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el && d['html__'+id] != null) el.innerHTML = d['html__'+id];
+      });
+      var admC = document.getElementById('admContent');
+      if (admC && d['admDisplay'] != null) admC.style.display = d['admDisplay'];
+
+      // atualiza UI
+      setTimeout(function() {
+        try { if (typeof atualizarPreview==='function') atualizarPreview(); } catch(e){}
+        try { if (typeof atualizarVisibilidadeObs==='function') atualizarVisibilidadeObs(); } catch(e){}
+      }, 300);
+
+    } catch(e) {}
+  }
+
+  /* ── LIMPA (só botão Limpar) ── */
+  function limparDraft() {
+    _restaurado = false;
+    try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+  }
+
+  /* ── AUTO-SAVE ── */
+  function agendar() { clearTimeout(_saveTimer); _saveTimer = setTimeout(salvar, 700); }
+  document.addEventListener('input',  agendar, true);
+  document.addEventListener('change', agendar, true);
+  document.addEventListener('click', function(e) {
+    var t = e.target;
+    if (!t) return;
+    if (t.tagName==='BUTTON' || (t.closest && t.closest('.csd-option,.custom-select-trigger')))
+      agendar();
+  }, true);
+  window.addEventListener('beforeunload', salvar);
+  window.addEventListener('pagehide',     salvar);
+
+  /* ── INTERCEPTA limparFormulario ── */
+  function blindarLimpar() {
+    var orig = window.limparFormulario;
+    if (typeof orig==='function' && !orig._rb) {
+      var w = function() { limparDraft(); return orig.apply(this,arguments); };
+      w._rb = true;
+      window.limparFormulario = w;
+    }
+  }
+  [200,600,1200,2000,3500,6000].forEach(function(t){ setTimeout(blindarLimpar,t); });
+
+  /* ── RESTAURA DEPOIS QUE O FIREBASE POPULAR OS DROPDOWNS ──
+     Estratégia: MutationObserver em #options_unidade.
+     O app só popula esse elemento após fbCarregar() resolver.
+     Quando tiver filhos = app pronto = restaurar. */
+  function aguardarAppPronto() {
+    var alvo = document.getElementById('options_unidade');
+
+    // Se já tem opções (improvável mas possível), restaura já
+    if (alvo && alvo.children.length > 0) { restaurar(); return; }
+
+    // Observa quando o app inserir os itens no dropdown
+    var obs = new MutationObserver(function(mutations) {
+      var temFilhos = mutations.some(function(m) { return m.addedNodes.length > 0; });
+      if (!temFilhos) return;
+      obs.disconnect();
+      // Pequena pausa para o app terminar de popular TODOS os dropdowns
+      setTimeout(restaurar, 500);
+    });
+
+    if (alvo) {
+      obs.observe(alvo, { childList: true });
+    }
+
+    // Fallback: se o MutationObserver não disparar em 8s, tenta assim mesmo
+    setTimeout(function() {
+      obs.disconnect();
+      if (!_restaurado) restaurar();
+    }, 8000);
+  }
+
+  // Inicia após DOMContentLoaded
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', aguardarAppPronto);
+  } else {
+    aguardarAppPronto();
+  }
+
+  // Debug no console do navegador
+  window._draft = { salvar:salvar, restaurar:function(){_restaurado=false;restaurar();}, limpar:limparDraft, key:DRAFT_KEY };
+
+})();
+</script>
+
+<script>
 (function() {
     
     function _fixFuncaoCor() {
