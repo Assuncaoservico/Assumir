@@ -1289,24 +1289,39 @@ function _prodEnterInicio(e) {
         trigger.classList.toggle('placeholder-active', !!ph);
       });
 
-      // Segunda passagem: garante que os custom selects não foram sobrescritos pelo app
-      function _reaplicarCustomSelects() {
-        Object.keys(d).forEach(function(key) {
-          if (key.indexOf('csl__') !== 0) return;
-          var triggerId = key.slice(5);
-          var trigger = document.getElementById(triggerId);
-          if (!trigger) return;
-          var ph = d['csp__' + triggerId];
-          // Se deveria ter valor (ph=false) mas ainda está como placeholder, re-aplica
-          if (!ph && trigger.classList.contains('placeholder-active')) {
-            var lbl = trigger.querySelector('.cst-label');
-            if (lbl) lbl.innerHTML = d[key];
-            trigger.classList.remove('placeholder-active');
-          }
+      // Guarda quais triggers devem ter valor (não-placeholder)
+      var _triggersParaProteger = {};
+      Object.keys(d).forEach(function(key) {
+        if (key.indexOf('csl__') !== 0) return;
+        var triggerId = key.slice(5);
+        var ph = d['csp__' + triggerId];
+        if (!ph) _triggersParaProteger[triggerId] = d[key]; // label HTML salvo
+      });
+
+      // MutationObserver: se o app resetar um trigger para placeholder, re-aplica imediatamente
+      if (Object.keys(_triggersParaProteger).length > 0) {
+        var _obsGuarda = new MutationObserver(function(mutations) {
+          mutations.forEach(function(m) {
+            if (m.type !== 'attributes' || m.attributeName !== 'class') return;
+            var trigger = m.target;
+            var tid = trigger.id;
+            if (!_triggersParaProteger[tid]) return;
+            if (trigger.classList.contains('placeholder-active')) {
+              var lbl = trigger.querySelector('.cst-label');
+              if (lbl) lbl.innerHTML = _triggersParaProteger[tid];
+              trigger.classList.remove('placeholder-active');
+            }
+          });
         });
+
+        Object.keys(_triggersParaProteger).forEach(function(tid) {
+          var trigger = document.getElementById(tid);
+          if (trigger) _obsGuarda.observe(trigger, { attributes: true, attributeFilter: ['class'] });
+        });
+
+        // Para de proteger após 5s (app já terminou de inicializar)
+        setTimeout(function() { _obsGuarda.disconnect(); }, 5000);
       }
-      setTimeout(_reaplicarCustomSelects, 500);
-      setTimeout(_reaplicarCustomSelects, 1500);
 
       // containers dinâmicos
       ['viaturasExtrasContainer','policiaisExtrasContainer','admExtrasContainer'].forEach(function(id) {
