@@ -1098,43 +1098,6 @@ function fecharPermutaPopupOverlay() {
     if (typeof atualizarVisibilidadeObs === 'function') atualizarVisibilidadeObs();
 }
 
-/* ── PATCH: limpa tags HTML das observações após gerarTextoPermuta ── */
-function _sanitizarObservacoes() {
-    var display = document.getElementById('observacoesDisplay');
-    var hidden  = document.getElementById('observacoes');
-    if (!display) return;
-
-    // Se o innerHTML contém tags <strong> literais como texto (escapadas)
-    // ou se o textContent contém "<strong>" como string visível
-    var txt = display.textContent || display.innerText || '';
-    if (txt.indexOf('<strong>') === -1 && txt.indexOf('</strong>') === -1) return;
-
-    // Substitui tags literais por texto limpo (remove apenas as tags, mantém o conteúdo)
-    var limpo = txt
-        .replace(/<strong>/gi, '')
-        .replace(/<\/strong>/gi, '')
-        .replace(/<br\s*\/?>/gi, '\n')
-        .trim();
-
-    display.innerHTML = limpo;
-    if (hidden) hidden.value = limpo;
-}
-
-/* Intercepta o botão Adicionar da permuta para chamar sanitização após */
-var _origGerarTextoPermuta = null;
-function _patchGerarTextoPermuta() {
-    if (typeof window.gerarTextoPermuta !== 'function' || window.gerarTextoPermuta._patched) return;
-    _origGerarTextoPermuta = window.gerarTextoPermuta;
-    window.gerarTextoPermuta = function() {
-        var r = _origGerarTextoPermuta.apply(this, arguments);
-        setTimeout(_sanitizarObservacoes, 80);
-        setTimeout(_sanitizarObservacoes, 300);
-        return r;
-    };
-    window.gerarTextoPermuta._patched = true;
-}
-[200, 600, 1200, 2500, 5000].forEach(function(t) { setTimeout(_patchGerarTextoPermuta, t); });
-
 function abrirCompOverlay() {
     var efetivo = (typeof getNomesEfetivo === 'function') ? getNomesEfetivo() : [];
     if (efetivo.length === 0) {
@@ -1167,8 +1130,6 @@ function processarComp_inline() {
     } else if (typeof gerarTextoCompensacao === 'function') {
         gerarTextoCompensacao();
     }
-    setTimeout(_sanitizarObservacoes, 80);
-    setTimeout(_sanitizarObservacoes, 300);
 }
 
 document.addEventListener('click', function(e) {
@@ -1375,6 +1336,8 @@ function _prodEnterInicio(e) {
       Object.keys(d).forEach(function(key) {
         if (key.indexOf('csl__') !== 0) return;
         var triggerId = key.slice(5);
+        // trigger_adm_cargo é derivado do nome, não deve ser restaurado pelo draft
+        if (triggerId === 'trigger_adm_cargo') return;
         var ph = d['csp__' + triggerId];
         if (!ph) _triggersParaProteger[triggerId] = d[key]; // label HTML salvo
       });
@@ -1388,6 +1351,10 @@ function _prodEnterInicio(e) {
         var lbl = trigger.querySelector('.cst-label');
         if (lbl) lbl.innerHTML = _triggersParaProteger[tid];
         trigger.classList.remove('placeholder-active');
+        // Restaura também o valor do hidden input correspondente (ex: 'unidade', 'p1_nome', etc.)
+        var hiddenId = tid.replace(/^trigger_/, '');
+        var hidden = document.getElementById(hiddenId);
+        if (hidden && d[hiddenId] !== undefined && d[hiddenId] !== '') hidden.value = d[hiddenId];
       }
 
       // MutationObserver: captura mudanças de class E de conteúdo do label
@@ -1584,8 +1551,17 @@ function _prodEnterInicio(e) {
           var el = document.getElementById(id);
           if (el) new MutationObserver(_debounce).observe(el, { childList: true, subtree: true });
         });
-        // Para os campos fixos, escuta eventos diretos
+        // Observa triggers de nome fixos (p1, p2, adm) para detectar seleção de policial
+        ['trigger_p1_nome', 'trigger_p2_nome', 'trigger_adm_nome'].forEach(function(id) {
+          var el = document.getElementById(id);
+          if (el) new MutationObserver(_debounce).observe(el, {
+            attributes: true, attributeFilter: ['class'],
+            subtree: true, childList: true, characterData: true
+          });
+        });
+        // Para os campos fixos, escuta eventos diretos (change e input)
         document.addEventListener('change', _debounce, true);
+        document.addEventListener('input', _debounce, true);
     });
 
     document.addEventListener('change', function(e) {
@@ -1636,6 +1612,10 @@ function _prodEnterInicio(e) {
     Array.prototype.forEach.call(trs, function (tr) {
       if (tr.id === excludeTriggerId) return;
       if (tr.classList.contains('placeholder-active')) return;
+      // Só conta a função se o policial correspondente tiver nome selecionado
+      var nomeHiddenId = tr.id.replace(/^trigger_/, '').replace(/_funcao$/, '_nome');
+      var nomeHidden = document.getElementById(nomeHiddenId);
+      if (nomeHidden && !nomeHidden.value) return;
       var lbl = tr.querySelector('.cst-label');
       if (lbl) usadas.push(lbl.textContent.trim());
     });
@@ -1655,8 +1635,8 @@ function _prodEnterInicio(e) {
   function deveExibir(txt, e) {
     switch (txt) {
       case 'Cmt/Mot':
-        // Só se não houver nenhum líder de nenhum tipo
-        return !e.temCM && !e.temCmt && !e.temMot;
+        // Só bloqueia se já houver outro Cmt/Mot, OU se houver Cmt E Mot separados (cobertura completa)
+        return !e.temCM && !(e.temCmt && e.temMot);
       case 'Cmt':
         // Só se não houver Cmt/Mot nem outro Cmt
         return !e.temCM && !e.temCmt;
@@ -1855,6 +1835,11 @@ window.limparAdmCustom = function () {
   var h = document.getElementById('adm_nome'); if (h) h.value = '';
   var m = document.getElementById('adm_mat');  if (m) m.value = '';
   var ec = document.getElementById('admExtrasContainer'); if (ec) ec.innerHTML = '';
+  // Limpa o cargo ao remover o nome
+  var cargoLbl = document.getElementById('adm_cargo_label');
+  if (cargoLbl) cargoLbl.textContent = '';
+  var trCargo = document.getElementById('trigger_adm_cargo');
+  if (trCargo) trCargo.classList.add('placeholder-active');
 };
 
 /* ADM reset já incluído no limparImediato acima */
@@ -1961,26 +1946,21 @@ window._adicionarPolicialExtra3 = function() {
 
 // Campo de enfeite do ADM: Cmt/Pel ou Sub Cmt/Pel — atualiza por evento
 (function _watchAdmCargo() {
-  var _ultimo = '';
-  function _update() {
-    var lbl = document.getElementById('adm_cargo_label');
-    var trigger = document.getElementById('trigger_adm_cargo');
-    if (!lbl || !trigger) return;
-    var nomeAdm = (document.getElementById('adm_nome') || {}).value || '';
-    if (nomeAdm === _ultimo) return;
-    _ultimo = nomeAdm;
-    var cargo = _getCargoAdm(nomeAdm);
-    lbl.textContent = cargo;
-    if (cargo) trigger.classList.remove('placeholder-active');
-    else trigger.classList.add('placeholder-active');
-  }
+  /* ── Calcula cargo do Sub Ten selecionado no ADM ── */
   function _getCargoAdm(nomeAdm) {
     if (!nomeAdm || typeof policiaisAdm === 'undefined') return '';
     var p = policiaisAdm.find(function(x) { return x.nome === nomeAdm; });
     if (!p) return '';
     if (!p.posto || p.posto.indexOf('Sub Ten') === -1) return '';
-    var subTens = policiaisAdm.filter(function(x) { return x.posto && x.posto.indexOf('Sub Ten') !== -1; });
-    if (subTens.length === 0) return '';
+    // Coleta Sub Tenentes de AMBAS as listas (patrulha + adm)
+    var todos = [];
+    if (typeof policiais !== 'undefined') todos = todos.concat(policiais);
+    todos = todos.concat(policiaisAdm);
+    var subTens = todos.filter(function(x) {
+      return x.posto && x.posto.indexOf('Sub Ten') !== -1;
+    });
+    if (subTens.length === 0) return 'Sub Cmt/Pel';
+    // Ordena ascendente: menor matrícula = mais antigo = Cmt/Pel
     subTens.sort(function(a, b) {
       var ma = parseInt((a.matricula || '').replace(/\D/g, '')) || 0;
       var mb = parseInt((b.matricula || '').replace(/\D/g, '')) || 0;
@@ -1990,12 +1970,44 @@ window._adicionarPolicialExtra3 = function() {
     var maisAntigoNum = parseInt((subTens[0].matricula || '').replace(/\D/g, '')) || 0;
     return meuNum === maisAntigoNum ? 'Cmt/Pel' : 'Sub Cmt/Pel';
   }
-  // Escuta mudança no hidden input de adm_nome
-  setTimeout(function() {
+
+  /* ── Atualiza label do cargo (sem cache — sempre reavalia) ── */
+  function _update() {
+    var lbl = document.getElementById('adm_cargo_label');
+    var trigger = document.getElementById('trigger_adm_cargo');
+    if (!lbl || !trigger) return;
+    var nomeAdm = (document.getElementById('adm_nome') || {}).value || '';
+    var cargo = _getCargoAdm(nomeAdm);
+    lbl.textContent = cargo;
+    if (cargo) trigger.classList.remove('placeholder-active');
+    else trigger.classList.add('placeholder-active');
+  }
+
+  /* ── Anexa listeners e observer (idempotente) ── */
+  function _attach() {
+    // hidden input: change disparado pela app
     var h = document.getElementById('adm_nome');
-    if (h) h.addEventListener('change', _update);
+    if (h && !h._cargoListener) {
+      h._cargoListener = true;
+      h.addEventListener('change', _update);
+    }
+    // trigger do nome: detecta seleção por dropdown E restauração de rascunho
+    var trNome = document.getElementById('trigger_adm_nome');
+    if (trNome && !trNome._cargoObs) {
+      trNome._cargoObs = true;
+      new MutationObserver(function() { setTimeout(_update, 60); })
+        .observe(trNome, {
+          attributes: true, attributeFilter: ['class'],
+          subtree: true, childList: true, characterData: true
+        });
+    }
     _update();
-  }, 1000);
+  }
+
+  // Roda em múltiplos momentos: cobre carregamento inicial, Firebase e restauração do rascunho
+  [400, 1000, 2000, 4000, 8000].forEach(function(t) {
+    setTimeout(_attach, t);
+  });
 })();
 </script>
 
@@ -2119,7 +2131,7 @@ window._adicionarPolicialExtra3 = function() {
     var tr=document.getElementById('trigger_p2_funcao');
     if(tr){ var lbl=tr.querySelector('.cst-label'); if(lbl) lbl.textContent=f;
       tr.classList.remove('placeholder-active');
-      tr.style.pointerEvents='none'; tr.style.opacity='0.7'; tr.style.cursor='default'; }
+      tr.style.pointerEvents='none'; tr.style.opacity='1'; tr.style.cursor='default'; }
   }
   function _fixFP3(){
     setTimeout(function(){
@@ -2130,7 +2142,7 @@ window._adicionarPolicialExtra3 = function() {
         if(h) h.value='Patrulheiro';
         var lbl=tr.querySelector('.cst-label'); if(lbl) lbl.textContent='Patrulheiro';
         tr.classList.remove('placeholder-active');
-        tr.style.pointerEvents='none'; tr.style.opacity='0.7'; tr.style.cursor='default';
+        tr.style.pointerEvents='none'; tr.style.opacity='1'; tr.style.cursor='default';
       });
     },120);
   }
