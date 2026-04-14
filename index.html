@@ -413,10 +413,10 @@ html body .input-wrapper input,html body .input-wrapper input[type="text"],html 
                             <input type="hidden" id="observacoes" value="">
                             <button class="clear-field-btn" onclick="limparCampoTexto('observacoes')">✕</button>
                         </div>
-                        <div style="display:flex; gap:6px; margin-top:8px;">
+                        <div style="display:flex; gap:6px; margin-top:24px;">
                             <button class="btn-obs-sub" id="btnSubPermuta" onclick="abrirPermutaOverlay()" style="flex:1;">Permuta</button>
                             <button class="btn-obs-sub" id="btnSubComp" onclick="abrirCompOverlay()" style="flex:1;">Compensação</button>
-                                        </div>
+                        </div>
                     </div>
 
                     <!-- Campo produtividade: sempre visível -->
@@ -427,7 +427,7 @@ html body .input-wrapper input,html body .input-wrapper input[type="text"],html 
                             <input type="hidden" id="produtividade" value="">
                             <button class="clear-field-btn" onclick="limparCampoTexto('produtividade')">✕</button>
                         </div>
-                        <div style="display:flex; gap:6px; margin-top:8px;">
+                        <div style="display:flex; gap:6px; margin-top:24px;">
                             <button class="btn-obs-sub" id="btnSubTexto" onclick="confirmarTipoProd('texto')" style="flex:1;">Texto</button>
                             <button class="btn-obs-sub" id="btnSubProd" onclick="abrirEscolhaTipoProd()" style="flex:1;">Produção</button>
                         </div>
@@ -1069,11 +1069,47 @@ html body.neu-mode .card{border:1.5px solid rgba(180,185,220,0.65) !important;bo
 </style>
 
 <style id="fixes-finais">
-button[onclick*="resetarConfiguracoes"]{background:var(--bg) !important;color:var(--accent) !important;text-shadow:none !important;border:none !important;box-shadow:var(--shadow-neu-out) !important;}html body #btnResetConfig,html body button#btnResetConfig{background:var(--bg) !important;color:var(--accent) !important;text-shadow:none !important;border:1.5px solid color-mix(in srgb,var(--accent) 50%,transparent) !important;box-shadow:var(--shadow-neu-out) !important;border-radius:50px !important;padding:10px 18px !important;}body.neu-mode .card{backdrop-filter:none !important;-webkit-backdrop-filter:none !important;background:#d0d4e4 !important;box-shadow:-6px -6px 14px rgba(255,255,255,0.85),6px 6px 14px rgba(100,110,140,0.35) !important;}html body .card,html body.light-mode .card,html body.neu-mode .card{border:1px solid color-mix(in srgb,var(--accent) 80%,transparent) !important;}#permutaPopupOverlay .custom-select-dropdown,#compPopupOverlay .custom-select-dropdown{z-index:10200 !important;position:relative !important;top:0 !important;}#permutaPopupOverlay .compensacao-popup-content,#compPopupOverlay .compensacao-popup-content{overflow:visible !important;}#permutaPopupOverlay .custom-select-wrapper,#compPopupOverlay .custom-select-wrapper{position:static !important;}#obsFieldGroup,#prodFieldGroup{display:block !important;}html body #observacoesDisplay,html body #produtividadeDisplay{min-height:160px !important;max-height:160px !important;height:160px !important;border-radius:18px !important;box-shadow:inset -4px -4px 10px rgba(255,255,255,0.75),inset 6px 6px 20px rgba(50,55,100,0.55) !important;padding:14px 40px 14px 16px !important;}body.neu-mode #observacoesDisplay,body.neu-mode #produtividadeDisplay{border-radius:18px !important;box-shadow:inset -5px -5px 12px rgba(255,255,255,0.80),inset 7px 7px 22px rgba(50,55,100,0.65) !important;}.btn-obs-sub{flex:1;padding:9px 4px;font-size:10px;font-weight:800;font-family:'Nunito',sans-serif;text-transform:uppercase;letter-spacing:0.4px;border:none;border-radius:6px;cursor:pointer;background:var(--bg);color:var(--text-secondary);box-shadow:var(--shadow-neu-out);transition:all 0.18s;}.btn-obs-sub:active{box-shadow:var(--shadow-neu-in);transform:scale(0.97);}
+button[onclick*="resetarConfiguracoes"]{background:var(--bg) !important;color:var(--accent) !important;text-shadow:none !important;border:none !important;box-shadow:var(--shadow-neu-out) !important;}html body #btnResetConfig,html body button#btnResetConfig{background:var(--bg) !important;color:var(--accent) !important;text-shadow:none !important;border:1.5px solid color-mix(in srgb,var(--accent) 50%,transparent) !important;box-shadow:var(--shadow-neu-out) !important;border-radius:50px !important;padding:10px 18px !important;}body.neu-mode .card{backdrop-filter:none !important;-webkit-backdrop-filter:none !important;background:#d0d4e4 !important;box-shadow:-6px -6px 14px rgba(255,255,255,0.85),6px 6px 14px rgba(100,110,140,0.35) !important;}html body .card,html body.light-mode .card,html body.neu-mode .card{border:1px solid color-mix(in srgb,var(--accent) 80%,transparent) !important;}#permutaPopupOverlay .custom-select-dropdown,#compPopupOverlay .custom-select-dropdown{z-index:10200 !important;position:relative !important;top:0 !important;}#permutaPopupOverlay .compensacao-popup-content,#compPopupOverlay .compensacao-popup-content{overflow:visible !important;}#permutaPopupOverlay .custom-select-wrapper,#compPopupOverlay .custom-select-wrapper{position:static !important;}#obsFieldGroup,#prodFieldGroup{display:block !important;}html body #observacoesDisplay,html body #produtividadeDisplay{min-height:160px !important;max-height:160px !important;height:160px !important;border-radius:18px !important;box-shadow:inset -4px -4px 10px rgba(255,255,255,0.75),inset 6px 6px 20px rgba(50,55,100,0.55) !important;padding:14px 40px 14px 16px !important;overflow-y:scroll !important;-webkit-overflow-scrolling:touch !important;touch-action:pan-y !important;overscroll-behavior:contain !important;}body.neu-mode #observacoesDisplay,body.neu-mode #produtividadeDisplay{border-radius:18px !important;box-shadow:inset -5px -5px 12px rgba(255,255,255,0.80),inset 7px 7px 22px rgba(50,55,100,0.65) !important;}.btn-obs-sub{flex:1;padding:9px 4px;font-size:10px;font-weight:800;font-family:'Nunito',sans-serif;text-transform:uppercase;letter-spacing:0.4px;border:none;border-radius:6px;cursor:pointer;background:var(--bg);color:var(--text-secondary);box-shadow:var(--shadow-neu-out);transition:all 0.18s;}.btn-obs-sub:active{box-shadow:var(--shadow-neu-in);transform:scale(0.97);}
 /* prod-popup: altura limitada, lista scroll, botões fixos */
 html body #prodPopup .prod-popup-content{overflow-y:hidden !important;overflow:hidden !important;}
 html body #prodListContainer{overflow-y:auto !important;-ms-overflow-style:none;scrollbar-width:none;}
 html body #prodListContainer::-webkit-scrollbar{display:none;}
+</style>
+
+<style id="btn-obs-tema">
+/* ── Botões Permuta / Compensação / Texto / Produção na cor do tema ── */
+.btn-obs-sub,
+body.neu-mode .btn-obs-sub,
+body.light-mode .btn-obs-sub,
+body.neu-mode #btnSubPermuta,
+body.neu-mode #btnSubComp,
+body.neu-mode #btnSubTexto,
+body.neu-mode #btnSubProd,
+body.neu-mode #btnSubPersonalizada,
+#btnSubPermuta, #btnSubComp, #btnSubTexto, #btnSubProd, #btnSubPersonalizada {
+  color: var(--accent) !important;
+  background: var(--bg) !important;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 35%, transparent) !important;
+  box-shadow: var(--shadow-neu-out) !important;
+  text-shadow: none !important;
+}
+.btn-obs-sub.ativo,
+body.neu-mode .btn-obs-sub.ativo,
+body.neu-mode #btnSubPermuta.ativo,
+body.neu-mode #btnSubComp.ativo,
+body.neu-mode #btnSubTexto.ativo,
+body.neu-mode #btnSubProd.ativo,
+body.neu-mode #btnSubPersonalizada.ativo,
+#btnSubPermuta.ativo, #btnSubComp.ativo, #btnSubTexto.ativo, #btnSubProd.ativo, #btnSubPersonalizada.ativo {
+  color: var(--accent) !important;
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg)) !important;
+  border-color: color-mix(in srgb, var(--accent) 60%, transparent) !important;
+  box-shadow: var(--shadow-neu-in) !important;
+}
+.btn-obs-sub:active, body.neu-mode .btn-obs-sub:active {
+  box-shadow: var(--shadow-neu-in) !important;
+  transform: scale(0.97);
+}
 </style>
 
 <script>
@@ -1147,6 +1183,49 @@ function abrirEscolhaTipoProd() {
 function fecharEscolhaTipoProd() {
     document.getElementById('escolhaTipoProdPopup').style.display = 'none';
 }
+</script>
+
+<script>
+/* ── SCROLL INTERNO NOS CAMPOS DE TEXTO COM TECLADO ABERTO ── */
+(function() {
+  function _ativarScroll(el) {
+    if (!el || el._scrollPatch) return;
+    el._scrollPatch = true;
+
+    // Impede que o toque propague para a página quando há conteúdo para rolar
+    el.addEventListener('touchstart', function(e) {
+      // Permite que o toque ative o campo normalmente
+      this._touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+
+    el.addEventListener('touchmove', function(e) {
+      var el = this;
+      var scrollable = el.scrollHeight > el.clientHeight;
+      if (!scrollable) return;
+
+      var atTop    = el.scrollTop <= 0;
+      var atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+      var dy = e.touches[0].clientY - (el._touchStartY || e.touches[0].clientY);
+
+      // Só bloqueia propagação quando ainda tem espaço para rolar no sentido do movimento
+      if ((atTop && dy > 0) || (atBottom && dy < 0)) return;
+
+      e.stopPropagation();
+    }, { passive: true });
+  }
+
+  function _init() {
+    _ativarScroll(document.getElementById('produtividadeDisplay'));
+    _ativarScroll(document.getElementById('observacoesDisplay'));
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _init);
+  } else {
+    _init();
+  }
+  setTimeout(_init, 500);
+})();
 </script>
 
 <script>
