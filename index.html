@@ -2520,5 +2520,29 @@ window._adicionarPolicialExtra3 = function() {
     </div>
   </div>
 </div>
+<script>
+/* Remove cursor fixo na posição 4 do formatarViaturaExtra */
+(function() {
+  function _patch() {
+    if (typeof window.formatarViaturaExtra !== 'function' || window.formatarViaturaExtra._cursorOk) return;
+    var _orig = window.formatarViaturaExtra;
+    window.formatarViaturaExtra = function(inp) {
+      var posBefore = inp.selectionStart;
+      var lenBefore = inp.value.length;
+      _orig(inp);
+      var lenAfter = inp.value.length;
+      /* Compensa separador inserido (ponto ou traço) */
+      var diff = lenAfter - lenBefore;
+      var novaPos = Math.max(0, Math.min(posBefore + diff, lenAfter));
+      /* Sobrescreve o setTimeout interno com a posição real */
+      setTimeout(function() {
+        try { inp.setSelectionRange(novaPos, novaPos); } catch(e) {}
+      }, 1);
+    };
+    window.formatarViaturaExtra._cursorOk = true;
+  }
+  [0, 100, 300, 800, 1500, 3000].forEach(function(t) { setTimeout(_patch, t); });
+})();
+</script>
 </body>
 </html>
