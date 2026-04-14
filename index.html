@@ -1098,6 +1098,43 @@ function fecharPermutaPopupOverlay() {
     if (typeof atualizarVisibilidadeObs === 'function') atualizarVisibilidadeObs();
 }
 
+/* ── PATCH: limpa tags HTML das observações após gerarTextoPermuta ── */
+function _sanitizarObservacoes() {
+    var display = document.getElementById('observacoesDisplay');
+    var hidden  = document.getElementById('observacoes');
+    if (!display) return;
+
+    // Se o innerHTML contém tags <strong> literais como texto (escapadas)
+    // ou se o textContent contém "<strong>" como string visível
+    var txt = display.textContent || display.innerText || '';
+    if (txt.indexOf('<strong>') === -1 && txt.indexOf('</strong>') === -1) return;
+
+    // Substitui tags literais por texto limpo (remove apenas as tags, mantém o conteúdo)
+    var limpo = txt
+        .replace(/<strong>/gi, '')
+        .replace(/<\/strong>/gi, '')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .trim();
+
+    display.innerHTML = limpo;
+    if (hidden) hidden.value = limpo;
+}
+
+/* Intercepta o botão Adicionar da permuta para chamar sanitização após */
+var _origGerarTextoPermuta = null;
+function _patchGerarTextoPermuta() {
+    if (typeof window.gerarTextoPermuta !== 'function' || window.gerarTextoPermuta._patched) return;
+    _origGerarTextoPermuta = window.gerarTextoPermuta;
+    window.gerarTextoPermuta = function() {
+        var r = _origGerarTextoPermuta.apply(this, arguments);
+        setTimeout(_sanitizarObservacoes, 80);
+        setTimeout(_sanitizarObservacoes, 300);
+        return r;
+    };
+    window.gerarTextoPermuta._patched = true;
+}
+[200, 600, 1200, 2500, 5000].forEach(function(t) { setTimeout(_patchGerarTextoPermuta, t); });
+
 function abrirCompOverlay() {
     var efetivo = (typeof getNomesEfetivo === 'function') ? getNomesEfetivo() : [];
     if (efetivo.length === 0) {
@@ -1130,6 +1167,8 @@ function processarComp_inline() {
     } else if (typeof gerarTextoCompensacao === 'function') {
         gerarTextoCompensacao();
     }
+    setTimeout(_sanitizarObservacoes, 80);
+    setTimeout(_sanitizarObservacoes, 300);
 }
 
 document.addEventListener('click', function(e) {
