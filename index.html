@@ -1784,6 +1784,12 @@ function _prodEnterInicio(e) {
    LIMPAR IMEDIATO — zera todo o formulário
    ══════════════════════════════════════════ */
 window.limparImediato = function () {
+  // Limpa proteção de todos os triggers ao limpar o formulário
+  if (window._triggersParaProteger) {
+    Object.keys(window._triggersParaProteger).forEach(function(k) {
+      delete window._triggersParaProteger[k];
+    });
+  }
   window._soloTexto = null;
   // Limpa draft
   try { if (window._draft && typeof window._draft.limpar === 'function') window._draft.limpar(); } catch (e) {}
@@ -1824,6 +1830,23 @@ window.toggleAdmSection = function () {
     var ec = document.getElementById('admExtrasContainer'); if (ec) ec.innerHTML = '';
   }
 };
+
+/* ── PATCH: ao limpar nome pelo ×, remove proteção do rascunho ── */
+(function() {
+  function _patchLimpar() {
+    var orig = window.limparPolicialCustom;
+    if (typeof orig !== 'function' || orig._lp_patched) return;
+    window.limparPolicialCustom = function(nomeId, matId) {
+      // Remove do rascunho para o observer não re-aplicar o nome antigo
+      if (window._triggersParaProteger) {
+        delete window._triggersParaProteger['trigger_' + nomeId];
+      }
+      return orig.apply(this, arguments);
+    };
+    window.limparPolicialCustom._lp_patched = true;
+  }
+  [0, 100, 300, 800, 1500, 3000].forEach(function(t) { setTimeout(_patchLimpar, t); });
+})();
 
 window.limparAdmCustom = function () {
   var tr = document.getElementById('trigger_adm_nome');
@@ -2060,6 +2083,7 @@ window._adicionarPolicialExtra3 = function() {
     if (typeof window.gerarRelatorio !== 'function' || window.gerarRelatorio._fp) return;
     var _o = window.gerarRelatorio;
     window.gerarRelatorio = function(){
+      // Converte HTML do campo produtividade
       var h = document.getElementById('produtividade');
       if (h) {
         var t = extrairTextoProd();
@@ -2068,6 +2092,11 @@ window._adicionarPolicialExtra3 = function() {
           var d2 = document.createElement('div'); d2.innerHTML = h.value;
           h.value = (d2.innerText||d2.textContent||'').replace(/\u200B/g,'').trim();
         }
+      }
+      // Converte HTML do campo observacoes (permuta, compensação, etc.)
+      var hObs = document.getElementById('observacoes');
+      if (hObs && hObs.value && hObs.value.indexOf('<') >= 0) {
+        hObs.value = window._htmlParaWA(hObs.value);
       }
       /* sem auto-copy */
       var _clipOrig = null, _execOrig = document.execCommand.bind(document);
@@ -2100,6 +2129,26 @@ window._adicionarPolicialExtra3 = function() {
   [300,800,2000,4000].forEach(function(t){ setTimeout(function(){ _patchSalvarProd(); _patchGerar(); }, t); });
   window._extrairTextoProd = extrairTextoProd;
   window._prodTextoParaHtml = prodTextoParaHtml;
+
+  /* Converte HTML interno para texto WhatsApp (*bold*, _itálico_, quebras) */
+  window._htmlParaWA = function(html) {
+    if (!html) return '';
+    return html
+      .replace(/<strong>([\s\S]*?)<\/strong>/gi, '*$1*')
+      .replace(/<b>([\s\S]*?)<\/b>/gi, '*$1*')
+      .replace(/<em>([\s\S]*?)<\/em>/gi, '_$1_')
+      .replace(/<i>([\s\S]*?)<\/i>/gi, '_$1_')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<p[^>]*>/gi, '')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\u200B/g, '')
+      .trim();
+  };
 })();
 </script>
 
@@ -2147,6 +2196,8 @@ window._adicionarPolicialExtra3 = function() {
     },120);
   }
   function _limparP2(){
+    // Remove proteção do rascunho para não re-aplicar o nome ao limpar
+    if (window._triggersParaProteger) delete window._triggersParaProteger['trigger_p2_nome'];
     var hN=document.getElementById('p2_nome'); if(hN) hN.value='';
     var hM=document.getElementById('p2_mat');  if(hM) hM.value='';
     var tr=document.getElementById('trigger_p2_nome');
@@ -2222,7 +2273,8 @@ window._adicionarPolicialExtra3 = function() {
     var funcaoP1 = p1F();
     var vtr  = (document.getElementById('viatura')     ||{}).value||'—';
     var kmF  = (document.getElementById('km_final')    ||{}).value||'—';
-    var obs  = (document.getElementById('observacoes') ||{}).value||'—';
+    var obsRaw = (document.getElementById('observacoes')||{}).value||'';
+    var obs  = obsRaw ? window._htmlParaWA(obsRaw) || obsRaw : '—';
     var tel  = (document.getElementById('tel_funcional')||{}).value||'—';
     var prod = (hProd && hProd.value) ? hProd.value : '—';
 
