@@ -1008,6 +1008,9 @@ window.fbEscutar = function(callback) {
 window._firebaseReady = true;
 window.dispatchEvent(new Event('firebaseReady'));
 
+// Garante que Firebase sempre tem prioridade no carregamento
+try { localStorage.removeItem('pmba_updatedAt'); } catch(e) {}
+
 // Remove classe .init após Firebase pronto + 2 frames pintados
 // garante que todas as mudanças de cor/fonte/tema já foram aplicadas
 window.addEventListener('firebaseReady', function() {
