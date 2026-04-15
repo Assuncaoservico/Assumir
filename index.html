@@ -982,53 +982,51 @@ window.addEventListener('firebaseReady', function() {
 <script>
 // ─── FORÇA ENVIO FIREBASE ────────────────────────────────────────────────
 (function() {
-  var _origFbSalvar = window.fbSalvar;
-  window.fbSalvar = async function(policiais, policiaisAdm, unidades, configs) {
-    if (policiais !== undefined) {
-      window._fbLastData = {
-        policiais:      policiais,
-        policiaisAdm:   policiaisAdm,
-        unidades:       unidades,
-        neonColor:      configs && configs.neonColor,
-        nightColors:    configs && configs.nightColors,
-        feedbackConfig: configs && configs.feedbackConfig
-      };
-    }
-    return _origFbSalvar.apply(this, arguments);
+  // Intercepta fbEscutar para guardar os dados recebidos em tempo real
+  // (onValue já está conectado — não trava como o get() do fbCarregar)
+  var _origEscutar = window.fbEscutar;
+  window.fbEscutar = function(callback) {
+    return _origEscutar(function(dados) {
+      window._fbCacheRT = dados;   // cacheia sempre que Firebase envia dados
+      callback(dados);
+    });
   };
-  // guarda referência direta ao original para o botão usar
-  window._fbSalvarOriginal = _origFbSalvar;
 })();
 
 window.forcarEnvioFirebase = async function() {
   var btn = document.getElementById('btnForcarFirebase');
   if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = '...'; }
-  try {
-    var dados = window._fbLastData;
-    if (!dados) { dados = await window.fbCarregar(); }
-    if (!dados) throw new Error('sem_dados');
 
-    // usa o original diretamente para evitar qualquer recursão
-    var salvar = window._fbSalvarOriginal || window.fbSalvar;
-    await salvar(
-      dados.policiais      || [],
-      dados.policiaisAdm   || [],
-      dados.unidades       || [],
+  var ok = false;
+  try {
+    var dados = window._fbCacheRT;
+
+    // Fallback: fbCarregar com timeout de 5s (evita travar indefinidamente)
+    if (!dados) {
+      dados = await Promise.race([
+        window.fbCarregar(),
+        new Promise(function(_, rej) { setTimeout(function(){ rej(new Error('timeout')); }, 5000); })
+      ]);
+    }
+
+    if (!dados || typeof dados !== 'object') throw new Error('sem_dados');
+
+    await window.fbSalvar(
+      dados.policiais     || [],
+      dados.policiaisAdm  || [],
+      dados.unidades      || [],
       {
         neonColor:      dados.neonColor      || null,
         nightColors:    dados.nightColors    || null,
         feedbackConfig: dados.feedbackConfig || null
       }
     );
-    if (typeof mostrarFeedback === 'function') mostrarFeedback('✅ Firebase atualizado!');
-  } catch(e) {
-    if (typeof mostrarFeedback === 'function') mostrarFeedback('⚠️ Erro ao sincronizar', 1);
-  } finally {
-    if (btn) {
-      btn.textContent = '↑ Sync';
-      btn.style.opacity = '1';
-      btn.disabled = false;
-    }
+    ok = true;
+  } catch(e) { /* silent */ }
+
+  if (btn) { btn.textContent = '↑ Sync'; btn.style.opacity = '1'; btn.disabled = false; }
+  if (typeof mostrarFeedback === 'function') {
+    mostrarFeedback(ok ? '✅ Sincronizado!' : '⚠️ Sem conexão', ok ? 0 : 1);
   }
 };
 </script>
