@@ -996,6 +996,8 @@ window.addEventListener('firebaseReady', function() {
     }
     return _origFbSalvar.apply(this, arguments);
   };
+  // guarda referência direta ao original para o botão usar
+  window._fbSalvarOriginal = _origFbSalvar;
 })();
 
 window.forcarEnvioFirebase = async function() {
@@ -1005,7 +1007,10 @@ window.forcarEnvioFirebase = async function() {
     var dados = window._fbLastData;
     if (!dados) { dados = await window.fbCarregar(); }
     if (!dados) throw new Error('sem_dados');
-    await window.fbSalvar(
+
+    // usa o original diretamente para evitar qualquer recursão
+    var salvar = window._fbSalvarOriginal || window.fbSalvar;
+    await salvar(
       dados.policiais      || [],
       dados.policiaisAdm   || [],
       dados.unidades       || [],
@@ -1022,7 +1027,7 @@ window.forcarEnvioFirebase = async function() {
     if (btn) {
       btn.textContent = '↑ Sync';
       btn.style.opacity = '1';
-      setTimeout(function(){ btn.disabled = false; }, 1800);
+      btn.disabled = false;
     }
   }
 };
