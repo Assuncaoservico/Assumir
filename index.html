@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-<style>html,body,#root{background:#d0d4e4 !important;color:#1a1a3e;}*{scrollbar-width:none;-ms-overflow-style:none;}</style>
+<style>html,body,#root{background:#d0d4e4 !important;color:#1a1a3e;}*{scrollbar-width:none;-ms-overflow-style:none;}.init,.init *,.init *::before,.init *::after{transition:none !important;animation-duration:0.001s !important;}</style>
 
     <meta name="mobile-web-app-capable" content="yes">
     <!-- Preconnect para fontes mais rápidas -->
@@ -167,7 +167,7 @@ html body .tel-funcional-label {
 </style>
 </head>
 
-<body class="neu-mode">
+<body class="neu-mode init">
 
 <div class="app-container">
     
@@ -690,6 +690,17 @@ html body .tel-funcional-label {
             </div>
             
             <div class="geral-section">
+                <div class="geral-section-title">Sincronização Firebase</div>
+                <div class="geral-row">
+                    <div>
+                        <div class="geral-row-label">Forçar Envio</div>
+                        <div class="geral-row-sub">Reenvia nomes, ADM e locais ao banco agora</div>
+                    </div>
+                    <button id="btnForcarFirebase" onclick="forcarEnvioFirebase()" style="padding:10px 18px;background:var(--bg);border:1.5px solid color-mix(in srgb,var(--accent) 50%,transparent);border-radius:50px;font-size:10px;font-weight:800;font-family:'Nunito',sans-serif;color:var(--accent);cursor:pointer;box-shadow:var(--shadow-neu-out);text-transform:uppercase;min-width:70px;transition:all 0.15s;">↑ Sync</button>
+                </div>
+            </div>
+
+            <div class="geral-section">
                 <div class="geral-section-title">Sobre</div>
                 <div class="sobre-text" style="font-size:16px;font-weight:900;font-style:normal;color:var(--accent);text-shadow:0 0 12px var(--neon-yellow-glow);letter-spacing:1.5px;padding:6px 0 2px;">✦ J.C.B ✦</div><div style="font-size:9px;font-weight:700;color:var(--text-secondary);text-align:center;letter-spacing:2px;text-transform:uppercase;padding-bottom:4px;">Desenvolvedor</div>
                 <div style="margin-top:14px;padding:10px 12px;background:rgba(255,100,100,0.08);border:1px solid rgba(255,100,100,0.25);border-radius:6px;text-align:center;">
@@ -957,6 +968,64 @@ window.fbEscutar = function(callback) {
 
 window._firebaseReady = true;
 window.dispatchEvent(new Event('firebaseReady'));
+
+// Remove classe .init após Firebase pronto + 2 frames pintados
+// garante que todas as mudanças de cor/fonte/tema já foram aplicadas
+window.addEventListener('firebaseReady', function() {
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      document.body.classList.remove('init');
+    });
+  });
+}, { once: true });
+</script>
+<script>
+// ─── FORÇA ENVIO FIREBASE ────────────────────────────────────────────────
+(function() {
+  var _origFbSalvar = window.fbSalvar;
+  window.fbSalvar = async function(policiais, policiaisAdm, unidades, configs) {
+    if (policiais !== undefined) {
+      window._fbLastData = {
+        policiais:      policiais,
+        policiaisAdm:   policiaisAdm,
+        unidades:       unidades,
+        neonColor:      configs && configs.neonColor,
+        nightColors:    configs && configs.nightColors,
+        feedbackConfig: configs && configs.feedbackConfig
+      };
+    }
+    return _origFbSalvar.apply(this, arguments);
+  };
+})();
+
+window.forcarEnvioFirebase = async function() {
+  var btn = document.getElementById('btnForcarFirebase');
+  if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = '...'; }
+  try {
+    var dados = window._fbLastData;
+    if (!dados) { dados = await window.fbCarregar(); }
+    if (!dados) throw new Error('sem_dados');
+    await window.fbSalvar(
+      dados.policiais      || [],
+      dados.policiaisAdm   || [],
+      dados.unidades       || [],
+      {
+        neonColor:      dados.neonColor      || null,
+        nightColors:    dados.nightColors    || null,
+        feedbackConfig: dados.feedbackConfig || null
+      }
+    );
+    if (typeof mostrarFeedback === 'function') mostrarFeedback('✅ Firebase atualizado!');
+  } catch(e) {
+    if (typeof mostrarFeedback === 'function') mostrarFeedback('⚠️ Erro ao sincronizar', 1);
+  } finally {
+    if (btn) {
+      btn.textContent = '↑ Sync';
+      btn.style.opacity = '1';
+      setTimeout(function(){ btn.disabled = false; }, 1800);
+    }
+  }
+};
 </script>
 <script>
 (function(){
