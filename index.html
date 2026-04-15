@@ -690,17 +690,6 @@ html body .tel-funcional-label {
             </div>
             
             <div class="geral-section">
-                <div class="geral-section-title">Sincronização Firebase</div>
-                <div class="geral-row">
-                    <div>
-                        <div class="geral-row-label">Forçar Envio</div>
-                        <div class="geral-row-sub">Reenvia nomes, ADM e locais ao banco agora</div>
-                    </div>
-                    <button id="btnForcarFirebase" onclick="forcarEnvioFirebase()" style="padding:10px 18px;background:var(--bg);border:1.5px solid color-mix(in srgb,var(--accent) 50%,transparent);border-radius:50px;font-size:10px;font-weight:800;font-family:'Nunito',sans-serif;color:var(--accent);cursor:pointer;box-shadow:var(--shadow-neu-out);text-transform:uppercase;min-width:70px;transition:all 0.15s;">↑ Sync</button>
-                </div>
-            </div>
-
-            <div class="geral-section">
                 <div class="geral-section-title">Sobre</div>
                 <div class="sobre-text" style="font-size:16px;font-weight:900;font-style:normal;color:var(--accent);text-shadow:0 0 12px var(--neon-yellow-glow);letter-spacing:1.5px;padding:6px 0 2px;">✦ J.C.B ✦</div><div style="font-size:9px;font-weight:700;color:var(--text-secondary);text-align:center;letter-spacing:2px;text-transform:uppercase;padding-bottom:4px;">Desenvolvedor</div>
                 <div style="margin-top:14px;padding:10px 12px;background:rgba(255,100,100,0.08);border:1px solid rgba(255,100,100,0.25);border-radius:6px;text-align:center;">
@@ -980,44 +969,57 @@ window.addEventListener('firebaseReady', function() {
 }, { once: true });
 </script>
 <script>
-// ─── FORÇA ENVIO FIREBASE ────────────────────────────────────────────────
-window.forcarEnvioFirebase = async function() {
-  var btn = document.getElementById('btnForcarFirebase');
-  if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = '...'; }
+// ─── AUTO-SYNC FIREBASE ──────────────────────────────────────────────────
+// Envia para Firebase automaticamente ao adicionar/editar/remover
+// policiais, ADM ou unidades — sem necessidade de botão manual
+(function() {
+  var _t = null;
 
-  var ok = false;
-  var info = '';
-  try {
-    // Tenta arrays locais do código comprimido
-    var p  = window.policiais    || window._policiais    || null;
-    var pa = window.policiaisAdm || window._policiaisAdm || null;
-    var u  = window.unidades     || window._unidades     || null;
+  function autoSync() {
+    clearTimeout(_t);
+    _t = setTimeout(async function() {
+      try {
+        // Tenta arrays do código comprimido primeiro
+        var p  = window.policiais    || null;
+        var pa = window.policiaisAdm || null;
+        var u  = window.unidades     || null;
 
-    if (p !== null || pa !== null || u !== null) {
-      // Encontrou dados locais — envia direto
-      info = 'local';
-      await window.fbSalvar(p || [], pa || [], u || [], null);
-      ok = true;
-    } else {
-      // Arrays locais não expostos — relê do Firebase como fallback
-      info = 'fb';
-      var dados = await window.fbCarregar();
-      if (!dados || typeof dados !== 'object') throw new Error('null');
-      await window.fbSalvar(
-        dados.policiais    || [],
-        dados.policiaisAdm || [],
-        dados.unidades     || [],
-        { neonColor: dados.neonColor || null, nightColors: dados.nightColors || null, feedbackConfig: dados.feedbackConfig || null }
-      );
-      ok = true;
-    }
-  } catch(e) { info = info || 'erro'; }
-
-  if (btn) { btn.textContent = '↑ Sync'; btn.style.opacity = '1'; btn.disabled = false; }
-  if (typeof mostrarFeedback === 'function') {
-    mostrarFeedback(ok ? ('✅ Sync ' + info) : ('⚠️ ' + info), ok ? 0 : 1);
+        if (p !== null || pa !== null || u !== null) {
+          await window.fbSalvar(p || [], pa || [], u || [], null);
+        } else {
+          // Fallback: relê Firebase e reescreve com configs preservadas
+          var d = await window.fbCarregar();
+          if (d && typeof d === 'object') {
+            await window.fbSalvar(
+              d.policiais || [], d.policiaisAdm || [], d.unidades || [],
+              { neonColor: d.neonColor || null, nightColors: d.nightColors || null, feedbackConfig: d.feedbackConfig || null }
+            );
+          }
+        }
+      } catch(e) {}
+    }, 600);
   }
-};
+
+  window.addEventListener('firebaseReady', function() {
+    // Observa mudanças nos containers de lista
+    ['policiaisList', 'admPoliciaisList', 'unidadesList'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) new MutationObserver(autoSync).observe(el, { childList: true, subtree: true });
+    });
+
+    // Intercepta botões de salvar como camada extra de segurança
+    ['salvarPopup', 'salvarUnidade'].forEach(function(nome) {
+      var orig = window[nome];
+      if (typeof orig === 'function') {
+        window[nome] = function() {
+          var r = orig.apply(this, arguments);
+          autoSync();
+          return r;
+        };
+      }
+    });
+  }, { once: true });
+})();
 </script>
 <script>
 (function(){
