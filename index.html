@@ -982,31 +982,35 @@ window.addEventListener('firebaseReady', function() {
 </script>
 <script>
 // ─── CORREÇÕES DE SYNC ───────────────────────────────────────────────────
-// 1) excluirUnidadePadrao não chama salvarDados() — intercepta para forçar sync
-// 2) salvarAssinatura só salva no localStorage — envia ao Firebase também
+// Ao apagar unidade padrão o blob não chama fbSalvar.
+// Solução: MutationObserver na lista de unidades detecta qualquer mudança
+// e força sync via fbSalvar com os dados atuais do localStorage.
 window.addEventListener('firebaseReady', function() {
-  // Aguarda o blob comprimido terminar de definir as funções
   setTimeout(function() {
 
-    // Fix 1: sync ao apagar unidade padrão
-    var _origExcluirPadrao = window.excluirUnidadePadrao;
-    if (typeof _origExcluirPadrao === 'function') {
-      window.excluirUnidadePadrao = function(i) {
-        _origExcluirPadrao(i);
-        if (typeof salvarDados === 'function') salvarDados();
-      };
+    var lista = document.getElementById('unidadesList');
+    if (lista) {
+      new MutationObserver(function() {
+        // Aguarda o blob terminar de atualizar o localStorage
+        setTimeout(function() {
+          try {
+            var p  = JSON.parse(localStorage.getItem('pmba_policiais')    || '[]');
+            var pa = JSON.parse(localStorage.getItem('pmba_policiaisAdm') || '[]');
+            var u  = JSON.parse(localStorage.getItem('pmba_unidades')     || '[]');
+            if (window.fbSalvar) window.fbSalvar(p, pa, u, null);
+          } catch(e) {}
+        }, 100);
+      }).observe(lista, { childList: true, subtree: true });
     }
 
-    // Fix 2: sync assinatura da aba Geral ao Firebase
+    // Fix assinatura da aba Geral ao Firebase
     var _origSalvarAssinatura = window.salvarAssinatura;
     if (typeof _origSalvarAssinatura === 'function') {
       window.salvarAssinatura = function() {
         _origSalvarAssinatura.apply(this, arguments);
         try {
           var val = localStorage.getItem('pmba_assinatura');
-          if (window.fbSalvarConfigs && val) {
-            window.fbSalvarConfigs({ assinatura: val });
-          }
+          if (window.fbSalvarConfigs && val) window.fbSalvarConfigs({ assinatura: val });
         } catch(e) {}
       };
     }
