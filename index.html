@@ -966,6 +966,12 @@ window.fbEscutar = function(callback) {
     });
 };
 
+// Listener próprio para o botão de força-sync
+// Roda dentro do módulo onde db/onValue/ref/SHARED_PATH existem
+onValue(ref(db, SHARED_PATH), (snap) => {
+    if (snap.exists()) window._fbCacheRT = snap.val();
+});
+
 window._firebaseReady = true;
 window.dispatchEvent(new Event('firebaseReady'));
 
@@ -981,17 +987,7 @@ window.addEventListener('firebaseReady', function() {
 </script>
 <script>
 // ─── FORÇA ENVIO FIREBASE ────────────────────────────────────────────────
-(function() {
-  // Intercepta fbEscutar para guardar os dados recebidos em tempo real
-  // (onValue já está conectado — não trava como o get() do fbCarregar)
-  var _origEscutar = window.fbEscutar;
-  window.fbEscutar = function(callback) {
-    return _origEscutar(function(dados) {
-      window._fbCacheRT = dados;   // cacheia sempre que Firebase envia dados
-      callback(dados);
-    });
-  };
-})();
+// _fbCacheRT é populado pelo listener onValue() dentro do módulo Firebase
 
 window.forcarEnvioFirebase = async function() {
   var btn = document.getElementById('btnForcarFirebase');
@@ -1001,12 +997,16 @@ window.forcarEnvioFirebase = async function() {
   try {
     var dados = window._fbCacheRT;
 
-    // Fallback: fbCarregar com timeout de 5s (evita travar indefinidamente)
+    // Se cache ainda vazio, espera até 6s pelo onValue disparar
     if (!dados) {
-      dados = await Promise.race([
-        window.fbCarregar(),
-        new Promise(function(_, rej) { setTimeout(function(){ rej(new Error('timeout')); }, 5000); })
-      ]);
+      dados = await new Promise(function(resolve) {
+        if (window._fbCacheRT) { resolve(window._fbCacheRT); return; }
+        var t = 0;
+        var iv = setInterval(function() {
+          if (window._fbCacheRT) { clearInterval(iv); resolve(window._fbCacheRT); return; }
+          if ((t += 200) >= 6000)  { clearInterval(iv); resolve(null); }
+        }, 200);
+      });
     }
 
     if (!dados || typeof dados !== 'object') throw new Error('sem_dados');
