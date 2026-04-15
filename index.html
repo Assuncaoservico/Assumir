@@ -986,28 +986,36 @@ window.forcarEnvioFirebase = async function() {
   if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = '...'; }
 
   var ok = false;
+  var info = '';
   try {
-    // fbCarregar é o mesmo que popula os dropdowns — funciona sempre
-    var dados = await window.fbCarregar();
+    // Tenta arrays locais do código comprimido
+    var p  = window.policiais    || window._policiais    || null;
+    var pa = window.policiaisAdm || window._policiaisAdm || null;
+    var u  = window.unidades     || window._unidades     || null;
 
-    if (!dados || typeof dados !== 'object') throw new Error();
-
-    await window.fbSalvar(
-      dados.policiais     || [],
-      dados.policiaisAdm  || [],
-      dados.unidades      || [],
-      {
-        neonColor:      dados.neonColor      || null,
-        nightColors:    dados.nightColors    || null,
-        feedbackConfig: dados.feedbackConfig || null
-      }
-    );
-    ok = true;
-  } catch(e) { /* silent */ }
+    if (p !== null || pa !== null || u !== null) {
+      // Encontrou dados locais — envia direto
+      info = 'local';
+      await window.fbSalvar(p || [], pa || [], u || [], null);
+      ok = true;
+    } else {
+      // Arrays locais não expostos — relê do Firebase como fallback
+      info = 'fb';
+      var dados = await window.fbCarregar();
+      if (!dados || typeof dados !== 'object') throw new Error('null');
+      await window.fbSalvar(
+        dados.policiais    || [],
+        dados.policiaisAdm || [],
+        dados.unidades     || [],
+        { neonColor: dados.neonColor || null, nightColors: dados.nightColors || null, feedbackConfig: dados.feedbackConfig || null }
+      );
+      ok = true;
+    }
+  } catch(e) { info = info || 'erro'; }
 
   if (btn) { btn.textContent = '↑ Sync'; btn.style.opacity = '1'; btn.disabled = false; }
   if (typeof mostrarFeedback === 'function') {
-    mostrarFeedback(ok ? '✅ Sincronizado!' : '⚠️ Falhou', ok ? 0 : 1);
+    mostrarFeedback(ok ? ('✅ Sync ' + info) : ('⚠️ ' + info), ok ? 0 : 1);
   }
 };
 </script>
