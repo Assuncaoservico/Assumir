@@ -946,17 +946,17 @@ window.fbCarregar = async function() {
         const snap = await get(ref(db, SHARED_PATH));
         if (snap.exists()) {
             const d = snap.val();
-            // Deduplica unidades
+            // Remove unidades padrão hardcoded e duplicatas
             if (d && d.unidades && Array.isArray(d.unidades)) {
                 const seen = new Set();
                 const antes = d.unidades.length;
                 d.unidades = d.unidades.filter(function(u) {
                     const key = typeof u === 'string' ? u : u.nome;
+                    if (_PADRAO_NOMES.has(key)) return false;
                     if (seen.has(key)) return false;
                     seen.add(key);
                     return true;
                 });
-                // Se havia duplicatas, salva de volta o array limpo
                 if (d.unidades.length < antes) {
                     set(ref(db, SHARED_PATH + '/unidades'), d.unidades);
                 }
@@ -970,6 +970,12 @@ window.fbCarregar = async function() {
 // Escuta mudanças em tempo real
 // _fbIgnoreNext: flag para ignorar update que veio de nós mesmos
 window._fbIgnoreNext = false;
+// Nomes das unidades padrão hardcoded no blob — não devem ir para unidadesPersonalizadas
+const _PADRAO_NOMES = new Set([
+    "2ª CIA PM - 1° PEL PM/BIRITINGA",
+    "2ª CIA PM - 2° PEL PM/BARROCAS",
+    "2ª CIA PM - 3° PEL PM/LAMARÃO"
+]);
 window.fbEscutar = function(callback) {
     onValue(ref(db, SHARED_PATH), (snap) => {
         if (snap.exists()) {
@@ -982,12 +988,14 @@ window.fbEscutar = function(callback) {
                     if (inp) inp.value = d.assinatura;
                 } catch(e) {}
             }
-            // Deduplica unidades antes de repassar ao blob
+            // Remove unidades padrão hardcoded do array antes de passar ao blob
+            // Evita que o blob as coloque em unidadesPersonalizadas e gere duplicatas
             if (d && d.unidades && Array.isArray(d.unidades)) {
                 const seen = new Set();
                 d.unidades = d.unidades.filter(function(u) {
                     const key = typeof u === 'string' ? u : u.nome;
-                    if (seen.has(key)) return false;
+                    if (_PADRAO_NOMES.has(key)) return false; // remove padrões
+                    if (seen.has(key)) return false;          // remove duplicatas
                     seen.add(key);
                     return true;
                 });
