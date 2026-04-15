@@ -966,12 +966,6 @@ window.fbEscutar = function(callback) {
     });
 };
 
-// Listener próprio para o botão de força-sync
-// Roda dentro do módulo onde db/onValue/ref/SHARED_PATH existem
-onValue(ref(db, SHARED_PATH), (snap) => {
-    if (snap.exists()) window._fbCacheRT = snap.val();
-});
-
 window._firebaseReady = true;
 window.dispatchEvent(new Event('firebaseReady'));
 
@@ -991,44 +985,29 @@ window.forcarEnvioFirebase = async function() {
   var btn = document.getElementById('btnForcarFirebase');
   if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = '...'; }
 
-  var info = '?';
   var ok = false;
   try {
-    // 1) verifica cache RT
-    var dados = window._fbCacheRT;
-    if (!dados) {
-      info = 'aguardando cache...';
-      dados = await new Promise(function(resolve) {
-        if (window._fbCacheRT) { resolve(window._fbCacheRT); return; }
-        var t = 0;
-        var iv = setInterval(function() {
-          if (window._fbCacheRT) { clearInterval(iv); resolve(window._fbCacheRT); }
-          else if ((t += 200) >= 6000) { clearInterval(iv); resolve(null); }
-        }, 200);
-      });
-    }
+    // fbCarregar é o mesmo que popula os dropdowns — funciona sempre
+    var dados = await window.fbCarregar();
 
-    if (!dados) { info = 'cache null'; throw new Error(); }
+    if (!dados || typeof dados !== 'object') throw new Error();
 
-    // 2) conta registros para diagnóstico
-    var np = dados.policiais ? (Array.isArray(dados.policiais) ? dados.policiais.length : Object.keys(dados.policiais).length) : 0;
-    var nu = dados.unidades  ? (Array.isArray(dados.unidades)  ? dados.unidades.length  : Object.keys(dados.unidades).length)  : 0;
-    info = 'p:' + np + ' u:' + nu;
-
-    // 3) reenvia
     await window.fbSalvar(
       dados.policiais     || [],
       dados.policiaisAdm  || [],
       dados.unidades      || [],
-      { neonColor: dados.neonColor || null, nightColors: dados.nightColors || null, feedbackConfig: dados.feedbackConfig || null }
+      {
+        neonColor:      dados.neonColor      || null,
+        nightColors:    dados.nightColors    || null,
+        feedbackConfig: dados.feedbackConfig || null
+      }
     );
     ok = true;
-
   } catch(e) { /* silent */ }
 
   if (btn) { btn.textContent = '↑ Sync'; btn.style.opacity = '1'; btn.disabled = false; }
   if (typeof mostrarFeedback === 'function') {
-    mostrarFeedback(ok ? '✅ Sync OK' : ('⚠️ ' + info), ok ? 0 : 1);
+    mostrarFeedback(ok ? '✅ Sincronizado!' : '⚠️ Falhou', ok ? 0 : 1);
   }
 };
 </script>
