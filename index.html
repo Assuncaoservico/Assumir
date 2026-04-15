@@ -969,57 +969,14 @@ window.addEventListener('firebaseReady', function() {
 }, { once: true });
 </script>
 <script>
-// ─── AUTO-SYNC FIREBASE ──────────────────────────────────────────────────
-// Envia para Firebase automaticamente ao adicionar/editar/remover
-// policiais, ADM ou unidades — sem necessidade de botão manual
-(function() {
-  var _t = null;
+// ─── AUTO-SYNC: intercepta fbSalvar para garantir que dados
+// salvos pelo código interno também chegam ao Firebase ────────────────────
+// O código comprimido já chama window.fbSalvar internamente ao salvar
+// policiais/ADM/unidades — não há necessidade de lógica adicional.
 
-  function autoSync() {
-    clearTimeout(_t);
-    _t = setTimeout(async function() {
-      try {
-        // Tenta arrays do código comprimido primeiro
-        var p  = window.policiais    || null;
-        var pa = window.policiaisAdm || null;
-        var u  = window.unidades     || null;
-
-        if (p !== null || pa !== null || u !== null) {
-          await window.fbSalvar(p || [], pa || [], u || [], null);
-        } else {
-          // Fallback: relê Firebase e reescreve com configs preservadas
-          var d = await window.fbCarregar();
-          if (d && typeof d === 'object') {
-            await window.fbSalvar(
-              d.policiais || [], d.policiaisAdm || [], d.unidades || [],
-              { neonColor: d.neonColor || null, nightColors: d.nightColors || null, feedbackConfig: d.feedbackConfig || null }
-            );
-          }
-        }
-      } catch(e) {}
-    }, 600);
-  }
-
-  window.addEventListener('firebaseReady', function() {
-    // Observa mudanças nos containers de lista
-    ['policiaisList', 'admPoliciaisList', 'unidadesList'].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) new MutationObserver(autoSync).observe(el, { childList: true, subtree: true });
-    });
-
-    // Intercepta botões de salvar como camada extra de segurança
-    ['salvarPopup', 'salvarUnidade'].forEach(function(nome) {
-      var orig = window[nome];
-      if (typeof orig === 'function') {
-        window[nome] = function() {
-          var r = orig.apply(this, arguments);
-          autoSync();
-          return r;
-        };
-      }
-    });
-  }, { once: true });
-})();
+// Garante que o Firebase sempre tem prioridade sobre localStorage
+// removendo o timestamp local — assim todo dispositivo busca dados frescos
+try { localStorage.removeItem('pmba_updatedAt'); } catch(e) {}
 </script>
 <script>
 (function(){
