@@ -934,6 +934,7 @@ window.fbSalvarConfigs = async function(configs) {
         if (configs.neonColor)      tasks.push(set(ref(db, SHARED_PATH + '/neonColor'), configs.neonColor));
         if (configs.nightColors)    tasks.push(set(ref(db, SHARED_PATH + '/nightColors'), configs.nightColors));
         if (configs.feedbackConfig) tasks.push(set(ref(db, SHARED_PATH + '/feedbackConfig'), configs.feedbackConfig));
+        if (configs.assinatura)     tasks.push(set(ref(db, SHARED_PATH + '/assinatura'), configs.assinatura));
         tasks.push(set(ref(db, SHARED_PATH + '/configsUpdatedAt'), Date.now()));
         await Promise.all(tasks);
     } catch(e) {  }
@@ -951,7 +952,18 @@ window.fbCarregar = async function() {
 // Escuta mudanças em tempo real
 window.fbEscutar = function(callback) {
     onValue(ref(db, SHARED_PATH), (snap) => {
-        if (snap.exists()) callback(snap.val());
+        if (snap.exists()) {
+            const d = snap.val();
+            // Aplica assinatura recebida do Firebase
+            if (d && d.assinatura) {
+                try {
+                    localStorage.setItem('pmba_assinatura', d.assinatura);
+                    const inp = document.getElementById('assinaturaInput');
+                    if (inp) inp.value = d.assinatura;
+                } catch(e) {}
+            }
+            callback(d);
+        }
     });
 };
 
@@ -969,14 +981,38 @@ window.addEventListener('firebaseReady', function() {
 }, { once: true });
 </script>
 <script>
-// ─── AUTO-SYNC: intercepta fbSalvar para garantir que dados
-// salvos pelo código interno também chegam ao Firebase ────────────────────
-// O código comprimido já chama window.fbSalvar internamente ao salvar
-// policiais/ADM/unidades — não há necessidade de lógica adicional.
+// ─── CORREÇÕES DE SYNC ───────────────────────────────────────────────────
+// 1) excluirUnidadePadrao não chama salvarDados() — intercepta para forçar sync
+// 2) salvarAssinatura só salva no localStorage — envia ao Firebase também
+window.addEventListener('firebaseReady', function() {
+  // Aguarda o blob comprimido terminar de definir as funções
+  setTimeout(function() {
 
-// Garante que o Firebase sempre tem prioridade sobre localStorage
-// removendo o timestamp local — assim todo dispositivo busca dados frescos
-try { localStorage.removeItem('pmba_updatedAt'); } catch(e) {}
+    // Fix 1: sync ao apagar unidade padrão
+    var _origExcluirPadrao = window.excluirUnidadePadrao;
+    if (typeof _origExcluirPadrao === 'function') {
+      window.excluirUnidadePadrao = function(i) {
+        _origExcluirPadrao(i);
+        if (typeof salvarDados === 'function') salvarDados();
+      };
+    }
+
+    // Fix 2: sync assinatura da aba Geral ao Firebase
+    var _origSalvarAssinatura = window.salvarAssinatura;
+    if (typeof _origSalvarAssinatura === 'function') {
+      window.salvarAssinatura = function() {
+        _origSalvarAssinatura.apply(this, arguments);
+        try {
+          var val = localStorage.getItem('pmba_assinatura');
+          if (window.fbSalvarConfigs && val) {
+            window.fbSalvarConfigs({ assinatura: val });
+          }
+        } catch(e) {}
+      };
+    }
+
+  }, 500);
+}, { once: true });
 </script>
 <script>
 (function(){
