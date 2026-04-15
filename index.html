@@ -990,12 +990,27 @@ window.addEventListener('firebaseReady', function() {
 
     var lista = document.getElementById('unidadesList');
     if (lista) {
+      var _obs_paused = false;
+      var _obs_timer  = null;
+
+      // Pausa o observer quando o Firebase atualiza o DOM
+      var _origFbEscutar = window.fbEscutar;
+      window.fbEscutar = function(callback) {
+        return _origFbEscutar(function(d) {
+          _obs_paused = true;
+          callback(d);
+          // Reativa após o DOM terminar de ser atualizado
+          setTimeout(function() { _obs_paused = false; }, 600);
+        });
+      };
+
       new MutationObserver(function() {
-        setTimeout(function() {
+        if (_obs_paused) return;
+        clearTimeout(_obs_timer);
+        _obs_timer = setTimeout(function() {
           try {
             var p  = JSON.parse(localStorage.getItem('pmba_policiais')    || '[]');
             var pa = JSON.parse(localStorage.getItem('pmba_policiaisAdm') || '[]');
-            // Lê nomes do DOM — inclui padrões + personalizadas no estado atual
             var nomes = Array.from(lista.querySelectorAll('.policial-nome'))
               .map(function(el) { return { nome: el.textContent.trim(), partesDestaque: [] }; });
             if (window.fbSalvar && nomes.length > 0) window.fbSalvar(p, pa, nomes, null);
