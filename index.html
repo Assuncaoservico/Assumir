@@ -982,28 +982,29 @@ window.addEventListener('firebaseReady', function() {
 </script>
 <script>
 // ─── CORREÇÕES DE SYNC ───────────────────────────────────────────────────
-// Ao apagar unidade padrão o blob não chama fbSalvar.
-// Solução: MutationObserver na lista de unidades detecta qualquer mudança
-// e força sync via fbSalvar com os dados atuais do localStorage.
+// excluirUnidadePadrao apaga de UNIDADES_PADRAO (array em memória, não no
+// localStorage). MutationObserver detecta a mudança no DOM e lê os nomes
+// diretamente dos elementos renderizados — captura estado real das padrões.
 window.addEventListener('firebaseReady', function() {
   setTimeout(function() {
 
     var lista = document.getElementById('unidadesList');
     if (lista) {
       new MutationObserver(function() {
-        // Aguarda o blob terminar de atualizar o localStorage
         setTimeout(function() {
           try {
             var p  = JSON.parse(localStorage.getItem('pmba_policiais')    || '[]');
             var pa = JSON.parse(localStorage.getItem('pmba_policiaisAdm') || '[]');
-            var u  = JSON.parse(localStorage.getItem('pmba_unidades')     || '[]');
-            if (window.fbSalvar) window.fbSalvar(p, pa, u, null);
+            // Lê nomes do DOM — inclui padrões + personalizadas no estado atual
+            var nomes = Array.from(lista.querySelectorAll('.policial-nome'))
+              .map(function(el) { return { nome: el.textContent.trim(), partesDestaque: [] }; });
+            if (window.fbSalvar && nomes.length > 0) window.fbSalvar(p, pa, nomes, null);
           } catch(e) {}
-        }, 100);
-      }).observe(lista, { childList: true, subtree: true });
+        }, 150);
+      }).observe(lista, { childList: true });
     }
 
-    // Fix assinatura da aba Geral ao Firebase
+    // Sync assinatura da aba Geral ao Firebase
     var _origSalvarAssinatura = window.salvarAssinatura;
     if (typeof _origSalvarAssinatura === 'function') {
       window.salvarAssinatura = function() {
