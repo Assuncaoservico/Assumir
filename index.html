@@ -1055,10 +1055,16 @@ const SHARED_PATH = 'dados_compartilhados';
 // Salva policiais+unidades+configs no Firebase
 window.fbSalvar = async function(policiais, policiaisAdm, unidades, configs) {
     try {
+        // Remove duplicatas e padrões das unidades antes de salvar
+        var unidadesFiltradas = (unidades || []).filter(function(u, idx, arr) {
+            var key = typeof u === 'string' ? u : u.nome;
+            if (typeof _PADRAO_NOMES !== 'undefined' && _PADRAO_NOMES.has(key)) return false;
+            return arr.findIndex(function(x) { return (typeof x === 'string' ? x : x.nome) === key; }) === idx;
+        });
         const payload = {
             policiais: policiais || [],
             policiaisAdm: policiaisAdm || [],
-            unidades: unidades || [],
+            unidades: unidadesFiltradas,
             updatedAt: Date.now()
         };
         if (configs) {
@@ -1135,6 +1141,7 @@ window.fbEscutar = function(callback) {
             // Evita que o blob as coloque em unidadesPersonalizadas e gere duplicatas
             if (d && d.unidades && Array.isArray(d.unidades)) {
                 const seen = new Set();
+                const antes = d.unidades.length;
                 d.unidades = d.unidades.filter(function(u) {
                     const key = typeof u === 'string' ? u : u.nome;
                     if (_PADRAO_NOMES.has(key)) return false; // remove padrões
@@ -1142,6 +1149,10 @@ window.fbEscutar = function(callback) {
                     seen.add(key);
                     return true;
                 });
+                // Se havia duplicatas, grava versão limpa de volta no Firebase (uma única vez)
+                if (d.unidades.length < antes) {
+                    set(ref(db, SHARED_PATH + '/unidades'), d.unidades);
+                }
             }
             callback(d);
         }
@@ -1708,6 +1719,31 @@ function _prodEnterInicio(e) {
     });
     var admC = document.getElementById('admContent');
     if (admC) d['admDisplay'] = admC.style.display;
+
+    // Preserva a data de início do serviço:
+    // Se há km_inicial preenchido mas km_final vazio, registra a data de hoje como _dataInicio.
+    // Se já havia _dataInicio salva e agora km_final foi preenchido, mantém a data original.
+    var kmI = (document.getElementById('km_inicial') || {}).value || '';
+    var kmF = (document.getElementById('km_final')   || {}).value || '';
+    if (kmI && kmI.trim()) {
+      // Tenta ler _dataInicio já salva no localStorage
+      var _existente = null;
+      try {
+        var _raw2 = localStorage.getItem('rascunho_' + USER_ID);
+        if (_raw2) { var _tmp = JSON.parse(_raw2); _existente = _tmp._dataInicio || null; }
+      } catch(e) {}
+
+      if (_existente && kmF && kmF.trim()) {
+        // Km final foi preenchido: preserva a data original de início
+        d._dataInicio = _existente;
+      } else if (!_existente || !kmF || !kmF.trim()) {
+        // Ainda sem km_final ou sem data salva: registra hoje como início
+        d._dataInicio = new Date().toLocaleDateString('pt-BR');
+      } else {
+        d._dataInicio = _existente;
+      }
+    }
+
     return d;
   }
 
@@ -2566,6 +2602,40 @@ window._adicionarPolicialExtra3 = function() {
       if (hObs && hObs.value && hObs.value.indexOf('<') >= 0) {
         hObs.value = window._htmlParaWA(hObs.value);
       }
+
+      // ── DATA DO SERVIÇO: se km_final preenchido, usa data salva do início ──
+      var _kmF = (document.getElementById('km_final')||{}).value||'';
+      var _dataOrigem = null;
+      if (_kmF && _kmF.trim()) {
+        try {
+          var _uid2 = localStorage.getItem('servico_user_id');
+          if (_uid2) {
+            var _raw3 = localStorage.getItem('rascunho_' + _uid2);
+            if (_raw3) {
+              var _dd3 = JSON.parse(_raw3);
+              if (_dd3 && _dd3._dataInicio) _dataOrigem = _dd3._dataInicio;
+            }
+          }
+        } catch(e) {}
+      }
+      // Sobrescreve new Date() temporariamente para que o blob use a data correta
+      var _DateOrig = window.Date;
+      if (_dataOrigem) {
+        var _partes3 = _dataOrigem.split('/');
+        if (_partes3.length === 3) {
+          var _dInicio = new _DateOrig(+_partes3[2], +_partes3[1]-1, +_partes3[0]);
+          // Substitui Date por uma versão que retorna _dInicio quando chamada sem args
+          window.Date = function() {
+            if (arguments.length === 0) return new _DateOrig(_dInicio.getTime());
+            return new (Function.prototype.bind.apply(_DateOrig, [null].concat(Array.prototype.slice.call(arguments))))();
+          };
+          window.Date.now = _DateOrig.now;
+          window.Date.parse = _DateOrig.parse;
+          window.Date.UTC  = _DateOrig.UTC;
+          window.Date.prototype = _DateOrig.prototype;
+        }
+      }
+
       /* sem auto-copy */
       var _clipOrig = null, _execOrig = document.execCommand.bind(document);
       window._blockarCopy = true;
@@ -2578,6 +2648,8 @@ window._adicionarPolicialExtra3 = function() {
         return _execOrig.apply(document, arguments);
       };
       var r = _o.apply(this, arguments);
+      // Restaura Date original
+      window.Date = _DateOrig;
       setTimeout(function(){
         window._blockarCopy = false;
         if (_clipOrig && navigator.clipboard) navigator.clipboard.writeText = _clipOrig;
@@ -2747,9 +2819,35 @@ window._adicionarPolicialExtra3 = function() {
     var tel  = (document.getElementById('tel_funcional')||{}).value||'—';
     var prod = (hProd && hProd.value) ? hProd.value : '—';
 
-    /* Data/hora */
+    /* Data/hora — preserva a data de início do serviço quando km_final é preenchido */
     var hoje = new Date(), ama = new Date(hoje);
     ama.setDate(hoje.getDate()+1);
+
+    // Se há km_final, tenta recuperar a data em que o serviço foi assumido
+    var _kmFinalPreenchido = kmF && kmF !== '—' && kmF.trim() !== '';
+    if (_kmFinalPreenchido) {
+      try {
+        var _raw = localStorage.getItem(window._draft ? window._draft.key : null);
+        if (!_raw) {
+          // Tenta pelo USER_ID salvo
+          var _uid = localStorage.getItem('servico_user_id');
+          if (_uid) _raw = localStorage.getItem('rascunho_' + _uid);
+        }
+        if (_raw) {
+          var _dd = JSON.parse(_raw);
+          if (_dd && _dd._dataInicio) {
+            // Usa a data salva no início do serviço
+            var _partes = _dd._dataInicio.split('/');
+            if (_partes.length === 3) {
+              hoje = new Date(+_partes[2], +_partes[1]-1, +_partes[0]);
+              ama  = new Date(hoje);
+              ama.setDate(hoje.getDate()+1);
+            }
+          }
+        }
+      } catch(e) {}
+    }
+
     var d1 = hoje.toLocaleDateString('pt-BR');
     var d2 = ama.toLocaleDateString('pt-BR');
     var hor = typeof getHorario==='function' ? getHorario() : '08:00';
