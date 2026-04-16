@@ -122,6 +122,17 @@ html{background:var(--bg) !important;background-attachment:scroll !important;}ht
 </script>
 
 <script>
+window.limparCampoTexto = function(campo) {
+  var isObs = campo === 'observacoes';
+  var hiddenEl  = document.getElementById(campo);
+  var displayEl = document.getElementById(isObs ? 'observacoesDisplay' : 'produtividadeDisplay');
+  if (hiddenEl)  hiddenEl.value = '';
+  if (displayEl) displayEl.innerHTML = '';
+  if (typeof atualizarPreview === 'function') atualizarPreview();
+};
+</script>
+
+<script>
 
 (function() {
   // Auto-save removido — rascunho só é salvo ao clicar em Gerar
@@ -559,11 +570,13 @@ html body .tel-funcional-label {
 
                     <!-- Campo observações: sempre visível -->
                     <div class="field-group" id="obsFieldGroup" style="display:block;">
-                        <label>Observações</label>
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                            <label style="margin-bottom:0;">Observações</label>
+                            <button class="clear-field-btn" onclick="limparCampoTexto('observacoes')" style="position:static; transform:none; width:36px; height:36px; font-size:15px; border-radius:8px; flex-shrink:0;">✕</button>
+                        </div>
                         <div class="input-wrapper">
                             <div class="campo-clicavel" id="observacoesDisplay" data-placeholder="Toque para editar..." onclick="abrirEditPopupFullscreen('obs')" style="cursor:pointer;"></div>
                             <input type="hidden" id="observacoes" value="">
-                            <button class="clear-field-btn" onclick="limparCampoTexto('observacoes')">✕</button>
                         </div>
                         <div style="display:flex; gap:6px; margin-top:24px;">
                             <button class="btn-obs-sub" id="btnSubPermuta" onclick="abrirPermutaOverlay()" style="flex:1;">Permuta</button>
@@ -573,11 +586,13 @@ html body .tel-funcional-label {
 
                     <!-- Campo produtividade: sempre visível -->
                     <div class="field-group" id="prodFieldGroup" style="display:block; margin-top:14px;">
-                        <label>Produtividade</label>
+                        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                            <label style="margin-bottom:0;">Produtividade</label>
+                            <button class="clear-field-btn" onclick="limparCampoTexto('produtividade')" style="position:static; transform:none; width:36px; height:36px; font-size:15px; border-radius:8px; flex-shrink:0;">✕</button>
+                        </div>
                         <div class="input-wrapper">
                             <div class="campo-clicavel" id="produtividadeDisplay" data-placeholder="Toque para editar..." onclick="abrirEditPopupFullscreen('prod')" style="cursor:pointer;"></div>
                             <input type="hidden" id="produtividade" value="">
-                            <button class="clear-field-btn" onclick="limparCampoTexto('produtividade')">✕</button>
                         </div>
                         <div style="display:flex; gap:6px; margin-top:24px;">
                             <button class="btn-obs-sub" id="btnSubTexto" onclick="confirmarTipoProd('texto')" style="flex:1;">Texto</button>
