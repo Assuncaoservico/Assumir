@@ -122,6 +122,50 @@ html{background:var(--bg) !important;background-attachment:scroll !important;}ht
 </script>
 
 <script>
+// Patch: dropdown adm_nome mostra apenas policiaisAdm
+(function() {
+  function patchAdmDropdown() {
+    var orig = window.toggleDropdown;
+    if (typeof orig !== 'function' || orig._admPatched) return;
+    function _filtrarAdm() {
+      var container = document.getElementById('options_adm_nome');
+      if (!container) return;
+      var opts = container.querySelectorAll('.csd-option');
+      var admNomes = [];
+      if (typeof policiaisAdm !== 'undefined' && Array.isArray(policiaisAdm)) {
+        admNomes = policiaisAdm.map(function(p) { return (p.nome || '').toLowerCase(); });
+      }
+      if (admNomes.length === 0) return;
+      opts.forEach(function(opt) {
+        var val = (opt.getAttribute('data-value') || opt.querySelector('.cst-label, span:first-child') && opt.querySelector('.cst-label, span:first-child').textContent || opt.childNodes[0] && opt.childNodes[0].textContent || opt.textContent || '').trim().toLowerCase();
+        var mostrar = admNomes.some(function(n) { return val.indexOf(n) !== -1 || n.indexOf(val) !== -1; });
+        opt.style.display = mostrar ? '' : 'none';
+      });
+    }
+
+    window.toggleDropdown = function(fieldId) {
+      orig.apply(this, arguments);
+      if (fieldId !== 'adm_nome') return;
+      setTimeout(function() { _filtrarAdm(); }, 50);
+    };
+    window.toggleDropdown._admPatched = true;
+
+    // Também patcha filterDropdown para manter filtro durante busca
+    var origFilter = window.filterDropdown;
+    if (typeof origFilter === 'function' && !origFilter._admPatched) {
+      window.filterDropdown = function(fieldId, val) {
+        origFilter.apply(this, arguments);
+        if (fieldId === 'adm_nome') setTimeout(function() { _filtrarAdm(); }, 30);
+      };
+      window.filterDropdown._admPatched = true;
+    }
+  }
+  // Tenta patchar após o blob carregar
+  [100, 500, 1000, 2000, 3000].forEach(function(t) {
+    setTimeout(patchAdmDropdown, t);
+  });
+})();
+
 window.limparCampoTexto = function(campo) {
   var isObs = campo === 'observacoes';
   var hiddenEl  = document.getElementById(campo);
