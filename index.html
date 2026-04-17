@@ -1438,6 +1438,30 @@ html body.light-mode .separator {
 }
 </style>
 
+<style id="section-icon-boost">
+/* Títulos das seções: ícone maior à direita */
+.efetivo-header,
+.form-section-title,
+.form-section-title-adm,
+#obsFieldGroup > div > label,
+#prodFieldGroup > div > label {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  text-align: left !important;
+}
+.sec-icon {
+  font-size: 26px !important;
+  line-height: 1 !important;
+  order: 2 !important;
+}
+.sec-txt {
+  order: 1 !important;
+}
+</style>
+
 <script>
 
 function abrirPermutaOverlay() {
@@ -3222,26 +3246,22 @@ if (document.readyState === 'loading') {
 
 /* ── 2. Ícones nos títulos de seção ── */
 function initSectionIcons() {
-  var ef = document.querySelector('.efetivo-header');
-  if (ef && !ef.dataset.iconDone) {
-    if (!ef.textContent.includes('👮')) ef.textContent = '👮 ' + ef.textContent.trim();
-    ef.dataset.iconDone = '1';
+  function wrapHeader(el, emoji, texto) {
+    if (!el || el.dataset.iconDone) return;
+    el.innerHTML = '<span class="sec-txt">' + texto + '</span><span class="sec-icon">' + emoji + '</span>';
+    el.dataset.iconDone = '1';
   }
-  var adm = document.querySelector('.form-section-title-adm');
-  if (adm && !adm.dataset.iconDone) {
-    if (!adm.textContent.includes('📋')) adm.textContent = '📋 ' + adm.textContent.trim();
-    adm.dataset.iconDone = '1';
-  }
-  var rp = document.querySelector('.form-section-title');
-  if (rp && !rp.dataset.iconDone) {
-    if (!rp.textContent.includes('🚔')) rp.textContent = '🚔 ' + rp.textContent.trim();
-    rp.dataset.iconDone = '1';
-  }
+  wrapHeader(document.querySelector('.efetivo-header'), '👮', 'Efetivo de Serviço');
+  wrapHeader(document.querySelector('.form-section-title-adm'), '📋', 'Administrativo');
+  wrapHeader(document.querySelector('.form-section-title'), '🚔', 'Rádio Patrulha');
+
   document.querySelectorAll('#obsFieldGroup label, #prodFieldGroup label').forEach(function(lbl) {
     if (lbl.dataset.iconDone) return;
     var txt = lbl.textContent.trim();
-    if (txt.indexOf('Observações') !== -1 && txt.indexOf('📝') === -1) lbl.textContent = '📝 Observações';
-    if (txt.indexOf('Produtividade') !== -1 && txt.indexOf('📊') === -1) lbl.textContent = '📊 Produtividade';
+    if (txt.indexOf('Observações') !== -1)
+      lbl.innerHTML = '<span class="sec-txt">Observações</span><span class="sec-icon">📝</span>';
+    if (txt.indexOf('Produtividade') !== -1)
+      lbl.innerHTML = '<span class="sec-txt">Produtividade</span><span class="sec-icon">📊</span>';
     lbl.dataset.iconDone = '1';
   });
 }
