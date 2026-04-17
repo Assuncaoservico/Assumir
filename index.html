@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -3298,11 +3299,11 @@ setTimeout(initSectionIcons, 2200);
 
 /* ── Intercepta texto de permuta e reescreve ── */
 (function() {
-  var PADRAO_TXT = /(.+?)\s+trabalha mediante permuta com\s+(.+?)\./i;
-  var PADRAO_HTML = /trabalha mediante permuta com/gi;
+  var PADRAO_ANTIGO = /(.+?)\s+trabalha mediante permuta com\s+(.+?)\./i;
+  var PADRAO_NOVO   = /^(.+?)\s+permutou o serviço com\s+(.+?)\s*\.?\s*$/i;
 
-  function novoTexto(nome1, nome2) {
-    return nome1.trim() + ' permutou o serviço com ' + nome2.trim() + '.';
+  function buildHtml(nome1, nome2) {
+    return '<strong>' + nome1.trim() + '</strong> permutou o serviço com <strong>' + nome2.trim() + '</strong>.';
   }
 
   function corrigirPermuta() {
@@ -3310,27 +3311,19 @@ setTimeout(initSectionIcons, 2200);
     var obsHidden  = document.getElementById('observacoes');
     if (!obsDisplay) return;
 
-    // Tenta no texto puro primeiro
     var texto = obsDisplay.innerText || obsDisplay.textContent || '';
-    var match = texto.match(PADRAO_TXT);
-    if (match) {
-      var novo = novoTexto(match[1], match[2]);
-      // Substitui no HTML preservando tags bold
-      var html = obsDisplay.innerHTML || '';
-      var htmlNovo = html.replace(PADRAO_HTML, 'permutou o serviço com');
-      // Remove " trabalha" que ficou antes
-      htmlNovo = htmlNovo.replace(/(\S[^<]*?)\s+permutou o serviço com/g, function(full, nome) {
-        return nome + ' permutou o serviço com';
-      });
-      if (htmlNovo !== html) {
-        obsDisplay.innerHTML = htmlNovo;
-      }
-      if (obsHidden) {
-        var textoFinal = (obsDisplay.innerText || obsDisplay.textContent || '').trim();
-        obsHidden.value = textoFinal;
-        obsHidden.dispatchEvent(new Event('input', { bubbles: true }));
-        obsHidden.dispatchEvent(new Event('change', { bubbles: true }));
-      }
+    var match = texto.match(PADRAO_ANTIGO) || texto.match(PADRAO_NOVO);
+    if (!match) return;
+
+    // Só reescreve se os nomes ainda não estiverem em <strong>
+    if (obsDisplay.innerHTML.indexOf('<strong>') !== -1) return;
+
+    obsDisplay.innerHTML = buildHtml(match[1], match[2]);
+
+    if (obsHidden) {
+      obsHidden.value = match[1].trim() + ' permutou o serviço com ' + match[2].trim() + '.';
+      obsHidden.dispatchEvent(new Event('input', { bubbles: true }));
+      obsHidden.dispatchEvent(new Event('change', { bubbles: true }));
     }
   }
 
