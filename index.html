@@ -627,13 +627,13 @@ html body .tel-funcional-label {
 
                     <!-- Campo observações: sempre visível -->
                     <div class="field-group" id="obsFieldGroup" style="display:block;">
-                        <div style="text-align:center;margin-bottom:8px;">
+                        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">
                             <label style="margin-bottom:0;"><span style="font-size:22px;vertical-align:middle;margin-right:6px;">📝</span>Observações</label>
+                            <button class="btn-limpar-obs" onclick="limparCampoTexto('observacoes')">✕</button>
                         </div>
                         <div class="input-wrapper" style="position:relative;">
                             <div class="campo-clicavel" id="observacoesDisplay" data-placeholder="Toque para editar..." onclick="abrirEditPopupFullscreen('obs')" style="cursor:pointer;"></div>
                             <input type="hidden" id="observacoes" value="">
-                            <button class="btn-limpar-obs" onclick="limparCampoTexto('observacoes')" style="position:absolute;top:8px;right:8px;">✕</button>
                         </div>
                         <div style="display:flex; gap:6px; margin-top:24px;">
                             <button class="btn-obs-sub" id="btnSubPermuta" onclick="abrirPermutaOverlay()" style="flex:1;">Permuta</button>
@@ -644,13 +644,13 @@ html body .tel-funcional-label {
                     <div style="height:1px; background:linear-gradient(90deg,transparent,var(--accent),transparent); opacity:0.25; margin:16px 0;"></div>
                     <!-- Campo produtividade: sempre visível -->
                     <div class="field-group" id="prodFieldGroup" style="display:block; margin-top:14px;">
-                        <div style="text-align:center;margin-bottom:8px;">
+                        <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:8px;">
                             <label style="margin-bottom:0;"><span style="font-size:22px;vertical-align:middle;margin-right:6px;">📊</span>Produtividade</label>
+                            <button class="btn-limpar-obs" onclick="limparCampoTexto('produtividade')">✕</button>
                         </div>
                         <div class="input-wrapper" style="position:relative;">
                             <div class="campo-clicavel" id="produtividadeDisplay" data-placeholder="Toque para editar..." onclick="abrirEditPopupFullscreen('prod')" style="cursor:pointer;"></div>
                             <input type="hidden" id="produtividade" value="">
-                            <button class="btn-limpar-obs" onclick="limparCampoTexto('produtividade')" style="position:absolute;top:8px;right:8px;">✕</button>
                         </div>
                         <div style="display:flex; gap:6px; margin-top:24px;">
                             <button class="btn-obs-sub" id="btnSubTexto" onclick="confirmarTipoProd('texto')" style="flex:1;">Texto</button>
