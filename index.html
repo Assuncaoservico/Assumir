@@ -4864,5 +4864,45 @@ html body.light-mode .csd-search {
 })();
 </script>
 
+<style id="spacing-edit-buttons">
+/* =========================================================
+   PATCH: espaço acima dos botões Cancelar/Confirmar (edição
+   do texto) e Copiar/WhatsApp — estavam colados no textarea.
+   Aparece DEPOIS de todos os outros <style> p/ ganhar cascade.
+   ========================================================= */
+html body #preview-edit-btns{
+    margin-top:20px !important;
+}
+html body .action-buttons{
+    margin-top:14px !important;
+}
+/* =========================================================
+   PATCH: texto de Observações e Produtividade alinhado à esquerda
+   (antes herdavam text-align:center da regra base .campo-clicavel).
+   Inclui o placeholder e o textarea do popup em tela cheia.
+   ========================================================= */
+html body #observacoesDisplay,
+html body #produtividadeDisplay,
+html body #obsPersonalizadaDisplay,
+html body #textoPopupArea,
+body.neu-mode #observacoesDisplay,
+body.neu-mode #produtividadeDisplay,
+body.neu-mode #obsPersonalizadaDisplay,
+body.neu-mode #textoPopupArea,
+body.light-mode #observacoesDisplay,
+body.light-mode #produtividadeDisplay,
+body.light-mode #obsPersonalizadaDisplay,
+body.light-mode #textoPopupArea{
+    text-align:left !important;
+}
+/* Placeholder dos campos vazios também à esquerda */
+html body #observacoesDisplay:empty::before,
+html body #produtividadeDisplay:empty::before,
+html body #obsPersonalizadaDisplay:empty::before{
+    text-align:left !important;
+    display:block !important;
+}
+</style>
+
 </body>
 </html>
