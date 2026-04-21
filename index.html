@@ -3976,7 +3976,7 @@ setTimeout(initSectionIcons, 2200);
         obsHidden.value = reescreveTexto(obsHidden.value);
       }
       if (match) {
-        obsHidden.value = match[1].trim() + ' permutou o serviço com ' + match[2].trim() + '.';
+        obsHidden.value = buildHtml(match[1].trim(), match[2].trim()); /* HTML com <strong> → _htmlParaWA converte em *negrito* WA */
       }
       obsHidden.dispatchEvent(new Event('input', { bubbles: true }));
       obsHidden.dispatchEvent(new Event('change', { bubbles: true }));
